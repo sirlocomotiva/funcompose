@@ -1,0 +1,31 @@
+# Python cache & bytecode
+__pycache__
+*.py[cod]
+
+/**/.env
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE / Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Agent & workspace state
+.overlord
+.overlord/**
+.omo
+.omo/**
+.codegraph
+.codegraph/**
+
+# Server runtime data: game files, saves, worlds
+servers/

@@ -1,0 +1,3 @@
+# The 7 Days to Die config files are byte-for-byte copies of the game's own
+# (Windows line endings, some with a byte order mark). Keep them that way.
+configs/7dtd/** -text
