@@ -1,0 +1,19 @@
+{
+  "servers": [
+    {
+      "id": "f0a8c40d-da2f-4db0-a770-496b83c491ab",
+      "name": "test",
+      "game": "minecraft",
+      "port": 25565,
+      "minecraft": {
+        "type": "VANILLA",
+        "version": "LATEST",
+        "memory": "2G",
+        "max_players": 20,
+        "motd": "A Minecraft Server"
+      },
+      "created_at": "2026-05-15T20:04:19.553303Z",
+      "status": "stopped"
+    }
+  ]
+}
