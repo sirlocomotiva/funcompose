@@ -11,6 +11,7 @@ services:
       - "8000:8000"
     environment:
       - DATA_PATH=/data
+      - CF_API_KEY=${CF_API_KEY:-}
     restart: unless-stopped
 
   frontend:
@@ -26,3 +27,33 @@ services:
       - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
+
+  minecraft-prominence-ii:
+    image: itzg/minecraft-server:java17
+    container_name: gamemanager-prominence-ii
+    restart: unless-stopped
+    ports:
+      - "25565:25565"
+    environment:
+      EULA: "TRUE"
+      TYPE: "AUTO_CURSEFORGE"
+      CF_PAGE_URL: "https://www.curseforge.com/minecraft/modpacks/prominence-2-hasturian-era"
+      CF_FILENAME_MATCHER: "4.0.1"
+      CF_API_KEY: ${CF_API_KEY:-}
+      MODRINTH_PROJECTS: "distanthorizons"
+      MODRINTH_ALLOWED_VERSION_TYPE: "beta"
+      VERSION: "1.20.1"
+      MEMORY: "8G"
+      MAX_PLAYERS: "20"
+      MOTD: "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons)"
+      ONLINE_MODE: "FALSE"
+    volumes:
+      - gamemanager-data-prominence-ii:/data
+    tty: true
+    stdin_open: true
+    profiles:
+      - prominence
+      - all
+
+volumes:
+  gamemanager-data-prominence-ii:

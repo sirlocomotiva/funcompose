@@ -39,6 +39,11 @@ export default function ServerDetail() {
   if (!server) return <p className="text-red-400">{error || "Server not found."}</p>;
 
   const isRunning = server.status === "running";
+  const typeLabel =
+    server.minecraft.modpack_name ||
+    (server.minecraft.type === "AUTO_CURSEFORGE"
+      ? "CurseForge Modpack"
+      : server.minecraft.type);
 
   return (
     <div className="flex flex-col gap-6">
@@ -53,7 +58,7 @@ export default function ServerDetail() {
           <div>
             <h2 className="text-2xl font-bold">{server.name}</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Minecraft &mdash; {server.minecraft.type} {server.minecraft.version}
+              Minecraft &mdash; {typeLabel} {server.minecraft.version}
             </p>
           </div>
           <StatusBadge status={server.status} />
@@ -64,6 +69,19 @@ export default function ServerDetail() {
           <Stat label="Memory" value={server.minecraft.memory} />
           <Stat label="Max Players" value={server.minecraft.max_players} />
           <Stat label="MOTD" value={server.minecraft.motd} />
+          {server.minecraft.cf_page_url && (
+            <div className="col-span-2 sm:col-span-4">
+              <p className="text-gray-500 text-xs uppercase tracking-wide">Modpack URL</p>
+              <a
+                href={server.minecraft.cf_page_url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-green-400 hover:underline break-all text-xs mt-0.5 inline-block"
+              >
+                {server.minecraft.cf_page_url}
+              </a>
+            </div>
+          )}
         </div>
 
         {error && (

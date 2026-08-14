@@ -1,12 +1,21 @@
 import { useState } from "react";
 
+const PROMINENCE_URL =
+  "https://www.curseforge.com/minecraft/modpacks/prominence-2-hasturian-era";
+
 const DEFAULTS = {
   name: "",
-  type: "PAPER",
-  version: "LATEST",
-  memory: "2G",
+  preset: "PROMINENCE_II",
+  type: "AUTO_CURSEFORGE",
+  version: "1.20.1",
+  memory: "8G",
   max_players: 20,
-  motd: "A Minecraft Server",
+  motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server",
+  cf_page_url: PROMINENCE_URL,
+  modpack_name: "Prominence II v4.0.1",
+  cf_api_key: "",
+  include_distant_horizons: true,
+  modrinth_projects: "distanthorizons",
 };
 
 export default function CreateServerModal({ onClose, onCreate }) {
@@ -16,6 +25,48 @@ export default function CreateServerModal({ onClose, onCreate }) {
 
   function set(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  function handlePresetChange(preset) {
+    if (preset === "PROMINENCE_II") {
+      setForm((f) => ({
+        ...f,
+        preset,
+        name: f.name === "" || f.name === "My Server" ? "Prominence II Server" : f.name,
+        type: "AUTO_CURSEFORGE",
+        version: "1.20.1",
+        memory: "8G",
+        motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons)",
+        cf_page_url: PROMINENCE_URL,
+        modpack_name: "Prominence II v4.0.1",
+        include_distant_horizons: true,
+        modrinth_projects: "distanthorizons",
+      }));
+    } else if (preset === "AUTO_CURSEFORGE") {
+      setForm((f) => ({
+        ...f,
+        preset,
+        type: "AUTO_CURSEFORGE",
+        version: f.version || "1.20.1",
+        memory: f.memory === "2G" ? "8G" : f.memory,
+        cf_page_url: f.cf_page_url || PROMINENCE_URL,
+        modpack_name: f.modpack_name || "",
+        include_distant_horizons: false,
+      }));
+    } else {
+      setForm((f) => ({
+        ...f,
+        preset,
+        type: preset,
+        version: "LATEST",
+        memory: f.memory === "8G" ? "2G" : f.memory,
+        motd: "A Minecraft Server",
+        cf_page_url: "",
+        modpack_name: "",
+        include_distant_horizons: false,
+        modrinth_projects: "",
+      }));
+    }
   }
 
   async function handleSubmit(e) {
@@ -31,6 +82,11 @@ export default function CreateServerModal({ onClose, onCreate }) {
           memory: form.memory,
           max_players: Number(form.max_players),
           motd: form.motd,
+          cf_page_url: form.cf_page_url || undefined,
+          cf_api_key: form.cf_api_key || undefined,
+          modpack_name: form.modpack_name || undefined,
+          modrinth_projects: form.modrinth_projects || (form.include_distant_horizons ? "distanthorizons" : undefined),
+          include_distant_horizons: form.include_distant_horizons,
         },
       });
       onClose();
@@ -41,8 +97,10 @@ export default function CreateServerModal({ onClose, onCreate }) {
     }
   }
 
+  const isModpack = form.type === "AUTO_CURSEFORGE" || form.preset === "PROMINENCE_II";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 overflow-y-auto py-6">
       <div className="w-full max-w-md rounded-2xl border border-gray-700 bg-gray-900 p-6 shadow-2xl">
         <h2 className="text-lg font-semibold mb-5">New Minecraft Server</h2>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -51,24 +109,42 @@ export default function CreateServerModal({ onClose, onCreate }) {
               required
               value={form.name}
               onChange={(e) => set("name", e.target.value)}
-              placeholder="My Server"
+              placeholder="Prominence II Server"
               className={inputCls}
             />
           </Field>
 
-          <Field label="Server Type">
-            <select value={form.type} onChange={(e) => set("type", e.target.value)} className={inputCls}>
-              <option value="VANILLA">Vanilla</option>
+          <Field label="Server Profile / Modpack">
+            <select
+              value={form.preset}
+              onChange={(e) => handlePresetChange(e.target.value)}
+              className={inputCls}
+            >
+              <option value="PROMINENCE_II">Prominence II v4.0.1 (CurseForge Modpack)</option>
               <option value="PAPER">Paper</option>
               <option value="FABRIC">Fabric</option>
+              <option value="VANILLA">Vanilla</option>
+              <option value="AUTO_CURSEFORGE">Custom CurseForge Modpack</option>
             </select>
           </Field>
+
+          {isModpack && (
+            <Field label="CurseForge Modpack / Download URL">
+              <input
+                required={isModpack}
+                value={form.cf_page_url}
+                onChange={(e) => set("cf_page_url", e.target.value)}
+                placeholder={PROMINENCE_URL}
+                className={inputCls}
+              />
+            </Field>
+          )}
 
           <Field label="Version">
             <input
               value={form.version}
               onChange={(e) => set("version", e.target.value)}
-              placeholder="LATEST"
+              placeholder="1.20.1"
               className={inputCls}
             />
           </Field>
@@ -79,7 +155,11 @@ export default function CreateServerModal({ onClose, onCreate }) {
                 <option value="1G">1 GB</option>
                 <option value="2G">2 GB</option>
                 <option value="4G">4 GB</option>
-                <option value="8G">8 GB</option>
+                <option value="6G">6 GB</option>
+                <option value="8G">8 GB (Recommended for Prominence II)</option>
+                <option value="10G">10 GB</option>
+                <option value="12G">12 GB</option>
+                <option value="16G">16 GB</option>
               </select>
             </Field>
 
@@ -99,10 +179,23 @@ export default function CreateServerModal({ onClose, onCreate }) {
             <input
               value={form.motd}
               onChange={(e) => set("motd", e.target.value)}
-              placeholder="A Minecraft Server"
+              placeholder="Prominence II Server"
               className={inputCls}
             />
           </Field>
+
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/60 border border-gray-700">
+            <input
+              type="checkbox"
+              id="include_dh"
+              checked={form.include_distant_horizons}
+              onChange={(e) => set("include_distant_horizons", e.target.checked)}
+              className="h-4 w-4 rounded border-gray-600 text-green-600 focus:ring-green-500 bg-gray-700"
+            />
+            <label htmlFor="include_dh" className="text-xs text-gray-300 cursor-pointer">
+              <span className="font-semibold text-white">Include Distant Horizons mod</span> &mdash; enables server-side Level-of-Detail (LOD) sync for extended render distances
+            </label>
+          </div>
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 

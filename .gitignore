@@ -1,0 +1,50 @@
+# Dependencies
+node_modules
+frontend/node_modules
+.venv
+venv
+env
+
+# Build outputs
+dist
+frontend/dist
+dist-ssr
+*.local
+
+# Python cache & bytecode
+__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+htmlcov
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE / Editor
+.vscode
+.idea
+*.swp
+*.swo
+
+# Agent & workspace state
+.overlord
+.overlord/**
+.omo
+.omo/**
+.codegraph
+.codegraph/**
+
+

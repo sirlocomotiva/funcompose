@@ -3,6 +3,11 @@ import StatusBadge from "./StatusBadge";
 
 export default function ServerCard({ server, onStart, onStop, onDelete, loading }) {
   const isRunning = server.status === "running";
+  const typeLabel =
+    server.minecraft.modpack_name ||
+    (server.minecraft.type === "AUTO_CURSEFORGE"
+      ? "CurseForge Modpack"
+      : server.minecraft.type);
 
   return (
     <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-3">
@@ -15,7 +20,7 @@ export default function ServerCard({ server, onStart, onStop, onDelete, loading 
             {server.name}
           </Link>
           <p className="text-sm text-gray-500 mt-0.5">
-            Minecraft &mdash; {server.minecraft.type} {server.minecraft.version}
+            Minecraft &mdash; {typeLabel} {server.minecraft.version}
           </p>
         </div>
         <StatusBadge status={server.status} />
