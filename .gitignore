@@ -47,4 +47,7 @@ Thumbs.db
 .codegraph
 .codegraph/**
 
+# Server runtime data
+servers/
+
 

@@ -20,6 +20,7 @@ class MinecraftConfig(BaseModel):
     curseforge_files: Optional[str] = None
     extra_mods: Optional[str] = None
     include_distant_horizons: bool = False
+    include_xaero_sync: bool = False
 
 
 class ServerCreate(BaseModel):

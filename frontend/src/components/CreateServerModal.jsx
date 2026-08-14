@@ -10,12 +10,13 @@ const DEFAULTS = {
   version: "1.20.1",
   memory: "8G",
   max_players: 20,
-  motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server",
+  motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons & Xaero's Maps Sync)",
   cf_page_url: PROMINENCE_URL,
   modpack_name: "Prominence II v4.0.1",
   cf_api_key: "",
   include_distant_horizons: true,
-  modrinth_projects: "distanthorizons",
+  include_xaero_sync: true,
+  modrinth_projects: "distanthorizons,xaeros-maps-multiplayer-plus",
 };
 
 export default function CreateServerModal({ onClose, onCreate }) {
@@ -36,11 +37,12 @@ export default function CreateServerModal({ onClose, onCreate }) {
         type: "AUTO_CURSEFORGE",
         version: "1.20.1",
         memory: "8G",
-        motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons)",
+        motd: "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons & Xaero's Maps Sync)",
         cf_page_url: PROMINENCE_URL,
         modpack_name: "Prominence II v4.0.1",
         include_distant_horizons: true,
-        modrinth_projects: "distanthorizons",
+        include_xaero_sync: true,
+        modrinth_projects: "distanthorizons,xaeros-maps-multiplayer-plus",
       }));
     } else if (preset === "AUTO_CURSEFORGE") {
       setForm((f) => ({
@@ -52,6 +54,7 @@ export default function CreateServerModal({ onClose, onCreate }) {
         cf_page_url: f.cf_page_url || PROMINENCE_URL,
         modpack_name: f.modpack_name || "",
         include_distant_horizons: false,
+        include_xaero_sync: false,
       }));
     } else {
       setForm((f) => ({
@@ -64,6 +67,7 @@ export default function CreateServerModal({ onClose, onCreate }) {
         cf_page_url: "",
         modpack_name: "",
         include_distant_horizons: false,
+        include_xaero_sync: false,
         modrinth_projects: "",
       }));
     }
@@ -74,6 +78,10 @@ export default function CreateServerModal({ onClose, onCreate }) {
     setLoading(true);
     setError(null);
     try {
+      const extraProjects = [];
+      if (form.include_distant_horizons) extraProjects.push("distanthorizons");
+      if (form.include_xaero_sync) extraProjects.push("xaeros-maps-multiplayer-plus");
+
       await onCreate({
         name: form.name,
         minecraft: {
@@ -85,8 +93,9 @@ export default function CreateServerModal({ onClose, onCreate }) {
           cf_page_url: form.cf_page_url || undefined,
           cf_api_key: form.cf_api_key || undefined,
           modpack_name: form.modpack_name || undefined,
-          modrinth_projects: form.modrinth_projects || (form.include_distant_horizons ? "distanthorizons" : undefined),
+          modrinth_projects: form.modrinth_projects || (extraProjects.length > 0 ? extraProjects.join(",") : undefined),
           include_distant_horizons: form.include_distant_horizons,
+          include_xaero_sync: form.include_xaero_sync,
         },
       });
       onClose();
@@ -194,6 +203,19 @@ export default function CreateServerModal({ onClose, onCreate }) {
             />
             <label htmlFor="include_dh" className="text-xs text-gray-300 cursor-pointer">
               <span className="font-semibold text-white">Include Distant Horizons mod</span> &mdash; enables server-side Level-of-Detail (LOD) sync for extended render distances
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-800/60 border border-gray-700">
+            <input
+              type="checkbox"
+              id="include_xaero"
+              checked={form.include_xaero_sync}
+              onChange={(e) => set("include_xaero_sync", e.target.checked)}
+              className="h-4 w-4 rounded border-gray-600 text-green-600 focus:ring-green-500 bg-gray-700"
+            />
+            <label htmlFor="include_xaero" className="text-xs text-gray-300 cursor-pointer">
+              <span className="font-semibold text-white">Include Xaero's Maps: Multiplayer+</span> &mdash; enables real-time world exploration & waypoint sharing across players (pairs with client-side XaeroPlus)
             </label>
           </div>
 

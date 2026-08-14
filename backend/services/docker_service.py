@@ -84,6 +84,15 @@ def create_and_start(server: Server):
         if not any(x.strip() in ["distanthorizons", "distant-horizons"] for x in modrinth_items):
             modrinth_items.append("distanthorizons")
 
+    if server.minecraft.include_xaero_sync or (
+        server.minecraft.modpack_name and "prominence" in server.minecraft.modpack_name.lower()
+    ):
+        if not any(
+            x.strip() in ["xaeros-maps-multiplayer-plus", "stTaMuWa", "xaeros-maps-multiplayer"]
+            for x in modrinth_items
+        ):
+            modrinth_items.append("xaeros-maps-multiplayer-plus")
+
     if modrinth_items:
         clean_modrinth = ",".join(filter(None, [m.strip() for m in modrinth_items]))
         if clean_modrinth:

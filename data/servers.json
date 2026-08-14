@@ -2,7 +2,7 @@
   "servers": [
     {
       "id": "f0a8c40d-da2f-4db0-a770-496b83c491ab",
-      "name": "test",
+      "name": "Vanilla Server",
       "game": "minecraft",
       "port": 25565,
       "minecraft": {
@@ -10,7 +10,7 @@
         "version": "LATEST",
         "memory": "2G",
         "max_players": 20,
-        "motd": "A Minecraft Server"
+        "motd": "Vanilla Minecraft Server"
       },
       "created_at": "2026-05-15T20:04:19.553303Z",
       "status": "stopped"
@@ -25,12 +25,13 @@
         "version": "1.20.1",
         "memory": "8G",
         "max_players": 20,
-        "motd": "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons)",
+        "motd": "Prominence II [RPG]: Hasturian Era v4.0.1 Server (with Distant Horizons & Xaero's Maps Sync)",
         "cf_page_url": "https://www.curseforge.com/minecraft/modpacks/prominence-2-hasturian-era",
         "cf_filename_matcher": "4.0.1",
         "modpack_name": "Prominence II v4.0.1",
-        "modrinth_projects": "distanthorizons",
-        "include_distant_horizons": true
+        "modrinth_projects": "distanthorizons,xaeros-maps-multiplayer-plus",
+        "include_distant_horizons": true,
+        "include_xaero_sync": true
       },
       "created_at": "2026-08-14T10:00:00.000000Z",
       "status": "stopped"
