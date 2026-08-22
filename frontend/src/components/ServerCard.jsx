@@ -1,35 +1,52 @@
 import { Link } from "react-router-dom";
 import StatusBadge from "./StatusBadge";
+import { describeServer, serverMemoryGb } from "../lib/gameMeta";
 
-export default function ServerCard({ server, onStart, onStop, onDelete, loading }) {
+export default function ServerCard({ server, game, onStart, onStop, onDelete, loading }) {
   const isRunning = server.status === "running";
-  const typeLabel =
-    server.minecraft.modpack_name ||
-    (server.minecraft.type === "AUTO_CURSEFORGE"
-      ? "CurseForge Modpack"
-      : server.minecraft.type);
 
   return (
-    <div className="rounded-xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-3">
-      <div className="flex items-start justify-between">
-        <div>
-          <Link
-            to={`/servers/${server.id}`}
-            className="text-lg font-semibold hover:text-green-400 transition-colors"
-          >
-            {server.name}
-          </Link>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Minecraft &mdash; {typeLabel} {server.minecraft.version}
-          </p>
+    <div
+      className="relative rounded-xl border border-gray-800 bg-gray-900 p-5 flex flex-col gap-3 overflow-hidden"
+      style={{ borderLeft: `3px solid ${game?.color || "#374151"}` }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start gap-3 min-w-0">
+          {game && (
+            <span
+              className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg mt-0.5"
+              style={{ backgroundColor: `${game.color}22` }}
+            >
+              {game.icon}
+            </span>
+          )}
+          <div className="min-w-0">
+            <Link
+              to={`/servers/${server.id}`}
+              className="text-lg font-semibold hover:text-green-400 transition-colors truncate block"
+            >
+              {server.name}
+            </Link>
+            <p className="text-sm text-gray-500 mt-0.5 truncate">
+              {game?.name || server.game} &mdash; {describeServer(server)}
+            </p>
+          </div>
         </div>
         <StatusBadge status={server.status} />
       </div>
 
-      <div className="text-sm text-gray-500 flex gap-4">
-        <span>Port: <span className="text-gray-300">{server.port}</span></span>
-        <span>RAM: <span className="text-gray-300">{server.minecraft.memory}</span></span>
-        <span>Players: <span className="text-gray-300">{server.minecraft.max_players}</span></span>
+      <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+        <span>
+          Port: <span className="text-gray-300">{server.port}</span>
+        </span>
+        <span>
+          RAM: <span className="text-gray-300">{serverMemoryGb(server) || "?"} GB</span>
+        </span>
+        {server.config?.max_players != null && (
+          <span>
+            Players: <span className="text-gray-300">{server.config.max_players}</span>
+          </span>
+        )}
       </div>
 
       <div className="flex gap-2 mt-1">
