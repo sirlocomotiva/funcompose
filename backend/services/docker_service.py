@@ -1,25 +1,15 @@
-import os
 import docker
-from docker.errors import NotFound, APIError
-from typing import Literal
+from docker.errors import NotFound
 
+import games
 from config import CONTAINER_PREFIX, VOLUME_PREFIX, PORT_RANGE_START, PORT_RANGE_END
 from models.server import Server
 
 client = docker.from_env()
 
-MINECRAFT_IMAGE = os.getenv("MINECRAFT_IMAGE", "itzg/minecraft-server:java17")
-PROMINENCE_DEFAULT_URL = (
-    "https://www.curseforge.com/minecraft/modpacks/prominence-2-hasturian-era"
-)
-
 
 def _container_name(server_id: str) -> str:
     return f"{CONTAINER_PREFIX}-{server_id}"
-
-
-def _volume_name(server_id: str) -> str:
-    return f"{VOLUME_PREFIX}-{server_id}"
 
 
 def get_container_status(server_id: str) -> str:
@@ -30,94 +20,62 @@ def get_container_status(server_id: str) -> str:
         return "stopped"
 
 
-def next_available_port(allocated: list[int]) -> int:
-    for port in range(PORT_RANGE_START, PORT_RANGE_END + 1):
-        if port not in allocated:
+def next_available_port(allocated: list[int], span: int = 1) -> int:
+    # Reserve room for extra ports (base + i + 1) so ranges never overlap.
+    used = set(allocated)
+    for port in range(PORT_RANGE_START, PORT_RANGE_END - span + 2):
+        if not any(p in used for p in range(port, port + span)):
             return port
-    raise RuntimeError("No available ports in range")
+    raise RuntimeError("No available ports in configured PORT_RANGE")
 
 
 def create_and_start(server: Server):
-    server_type = server.minecraft.type
-    cf_url = server.minecraft.cf_page_url
+    game = games.get_game(server.game)
+    if not game:
+        raise RuntimeError(f"Unknown game '{server.game}'")
 
-    if server_type == "PROMINENCE_II":
-        server_type = "AUTO_CURSEFORGE"
-        if not cf_url:
-            cf_url = PROMINENCE_DEFAULT_URL
+    env = game["build_env"](server.config)
 
-    if cf_url and "/download/" in cf_url and server_type == "AUTO_CURSEFORGE":
-        cf_url = cf_url.split("/download/")[0]
-
-    env = {
-        "EULA": "TRUE",
-        "TYPE": server_type,
-        "VERSION": server.minecraft.version,
-        "MEMORY": server.minecraft.memory,
-        "MAX_PLAYERS": str(server.minecraft.max_players),
-        "MOTD": server.minecraft.motd,
-        "ONLINE_MODE": "FALSE",
+    ports = {
+        f"{game['default_port']}/{game['port_protocol']}": server.port,
     }
+    for i, extra in enumerate(game["extra_ports"] or []):
+        ports[f"{extra['port']}/{extra['protocol']}"] = server.port + i + 1
 
-    if cf_url:
-        env["CF_PAGE_URL"] = cf_url
-    if server.minecraft.cf_file_id:
-        env["CF_FILE_ID"] = server.minecraft.cf_file_id
-    if server.minecraft.cf_slug:
-        env["CF_SLUG"] = server.minecraft.cf_slug
-    if server.minecraft.cf_filename_matcher:
-        env["CF_FILENAME_MATCHER"] = server.minecraft.cf_filename_matcher
-    elif server.minecraft.modpack_name and "4.0.1" in server.minecraft.modpack_name:
-        env["CF_FILENAME_MATCHER"] = "4.0.1"
+    volumes = {}
+    for i, path in enumerate(game["volumes"] or []):
+        name = _volume_name(server.id) if i == 0 else f"{_volume_name(server.id)}-{i}"
+        volumes[name] = {"bind": path, "mode": "rw"}
 
-    cf_api_key = server.minecraft.cf_api_key or os.getenv("CF_API_KEY")
-    if cf_api_key:
-        env["CF_API_KEY"] = cf_api_key
-
-    modrinth_items = []
-    if server.minecraft.modrinth_projects:
-        modrinth_items.extend(server.minecraft.modrinth_projects.replace("\n", ",").split(","))
-
-    if server.minecraft.include_distant_horizons or (
-        server.minecraft.modpack_name and "prominence" in server.minecraft.modpack_name.lower()
-    ):
-        if not any(x.strip() in ["distanthorizons", "distant-horizons"] for x in modrinth_items):
-            modrinth_items.append("distanthorizons")
-
-    if server.minecraft.include_xaero_sync or (
-        server.minecraft.modpack_name and "prominence" in server.minecraft.modpack_name.lower()
-    ):
-        if not any(
-            x.strip() in ["xaeros-maps-multiplayer-plus", "stTaMuWa", "xaeros-maps-multiplayer"]
-            for x in modrinth_items
-        ):
-            modrinth_items.append("xaeros-maps-multiplayer-plus")
-
-    if modrinth_items:
-        clean_modrinth = ",".join(filter(None, [m.strip() for m in modrinth_items]))
-        if clean_modrinth:
-            env["MODRINTH_PROJECTS"] = clean_modrinth
-            env["MODRINTH_ALLOWED_VERSION_TYPE"] = (
-                server.minecraft.modrinth_allowed_version_type or "beta"
-            )
-
-    if server.minecraft.curseforge_files:
-        env["CURSEFORGE_FILES"] = server.minecraft.curseforge_files
-    if server.minecraft.extra_mods:
-        env["MODS"] = server.minecraft.extra_mods
+    try:
+        mem_gb = int(server.config.get("memory_gb") or game["recommended_memory_gb"])
+    except (TypeError, ValueError):
+        mem_gb = game["recommended_memory_gb"] or 2
 
     client.containers.run(
-        MINECRAFT_IMAGE,
+        game["image"],
         name=_container_name(server.id),
         detach=True,
         platform="linux/amd64",
         environment=env,
-        ports={"25565/tcp": server.port},
-        volumes={_volume_name(server.id): {"bind": "/data", "mode": "rw"}},
+        ports=ports,
+        volumes=volumes,
         restart_policy={"Name": "unless-stopped"},
+        mem_limit=f"{mem_gb}g",
         tty=True,
         stdin_open=True,
     )
+
+
+def update_and_recreate(server: Server):
+    """Apply new settings: remove the old container (data volumes survive), recreate."""
+    try:
+        container = client.containers.get(_container_name(server.id))
+        container.stop(timeout=30)
+        container.remove()
+    except NotFound:
+        pass
+    create_and_start(server)
 
 
 def start_container(server_id: str):
@@ -151,11 +109,9 @@ def remove_container(server_id: str):
         container.remove()
     except NotFound:
         pass
-    try:
-        volume = client.volumes.get(_volume_name(server_id))
+    prefix = _volume_name(server_id)
+    for volume in client.volumes.list(filters={"name": prefix}):
         volume.remove()
-    except NotFound:
-        pass
 
 
 def stream_logs(server_id: str):
