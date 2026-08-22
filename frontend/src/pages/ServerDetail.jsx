@@ -1,22 +1,30 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useGames } from "../context/GamesContext";
+import { gameById, describeServer, serverMemoryGb } from "../lib/gameMeta";
 import StatusBadge from "../components/StatusBadge";
 import ConsoleViewer from "../components/ConsoleViewer";
+import EditServerModal from "../components/EditServerModal";
 
 export default function ServerDetail() {
   const { id } = useParams();
+  const { games } = useGames();
   const [server, setServer] = useState(null);
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [showEdit, setShowEdit] = useState(false);
   const [error, setError] = useState(null);
 
   async function fetchServer() {
     try {
       const data = await api.getServer(id);
       setServer(data);
+      setError(null);
     } catch (e) {
       setError(e.message);
+      if (e.message.includes("not found")) setNotFound(true);
     } finally {
       setLoading(false);
     }
@@ -30,59 +38,72 @@ export default function ServerDetail() {
 
   async function action(fn) {
     setActionLoading(true);
-    try { await fn(); await fetchServer(); }
-    catch (e) { setError(e.message); }
-    finally { setActionLoading(false); }
+    try {
+      await fn();
+      await fetchServer();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setActionLoading(false);
+    }
   }
 
-  if (loading) return <p className="text-gray-500">Loading…</p>;
-  if (!server) return <p className="text-red-400">{error || "Server not found."}</p>;
+  async function handleSave(body) {
+    const updated = await api.updateServer(id, body);
+    setServer(updated);
+    setShowEdit(false);
+  }
+
+  if (loading || !games.length) return <p className="text-gray-500">Loading…</p>;
+  if (notFound && !server) return <p className="text-red-400">{error || "Server not found."}</p>;
+  if (!server) return <p className="text-gray-500">Loading…</p>;
 
   const isRunning = server.status === "running";
-  const typeLabel =
-    server.minecraft.modpack_name ||
-    (server.minecraft.type === "AUTO_CURSEFORGE"
-      ? "CurseForge Modpack"
-      : server.minecraft.type);
+  const game = gameById(games, server.game);
+
+  const stats = Object.entries(server.config || {})
+    .filter(([, v]) => v !== null && v !== undefined && v !== "" && typeof v !== "boolean")
+    .slice(0, 7);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
-        <Link to="/" className="text-gray-500 hover:text-gray-300 transition-colors text-sm">
-          ← Servers
-        </Link>
-      </div>
+      <Link to="/" className="text-gray-500 hover:text-gray-300 transition-colors text-sm">
+        ← Servers
+      </Link>
 
-      <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h2 className="text-2xl font-bold">{server.name}</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Minecraft &mdash; {typeLabel} {server.minecraft.version}
-            </p>
+      <div
+        className="rounded-xl border border-gray-800 bg-gray-900 p-6"
+        style={{ borderLeft: `3px solid ${game?.color || "#374151"}` }}
+      >
+        <div className="flex items-start justify-between gap-3 mb-5 flex-wrap">
+          <div className="flex items-center gap-3">
+            {game && (
+              <span
+                className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-2xl"
+                style={{ backgroundColor: `${game.color}22` }}
+              >
+                {game.icon}
+              </span>
+            )}
+            <div>
+              <h2 className="text-2xl font-bold">{server.name}</h2>
+              <p className="text-sm text-gray-500 mt-0.5">
+                {game?.name || server.game} &mdash; {describeServer(server)}
+              </p>
+            </div>
           </div>
           <StatusBadge status={server.status} />
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 text-sm">
-          <Stat label="Port" value={server.port} />
-          <Stat label="Memory" value={server.minecraft.memory} />
-          <Stat label="Max Players" value={server.minecraft.max_players} />
-          <Stat label="MOTD" value={server.minecraft.motd} />
-          {server.minecraft.cf_page_url && (
-            <div className="col-span-2 sm:col-span-4">
-              <p className="text-gray-500 text-xs uppercase tracking-wide">Modpack URL</p>
-              <a
-                href={server.minecraft.cf_page_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-green-400 hover:underline break-all text-xs mt-0.5 inline-block"
-              >
-                {server.minecraft.cf_page_url}
-              </a>
-            </div>
-          )}
-        </div>
+        {stats.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5 text-sm">
+            <Stat label="Port" value={server.port} />
+            <Stat label="Memory" value={`${serverMemoryGb(server) || "?"} GB`} />
+            {stats.map(([k, v]) => (
+              <Stat key={k} label={k.replaceAll("_", " ")} value={String(v)} />
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg bg-red-900/30 border border-red-700/50 px-4 py-3 text-sm text-red-400 mb-4">
@@ -90,7 +111,7 @@ export default function ServerDetail() {
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {isRunning ? (
             <>
               <button
@@ -117,15 +138,32 @@ export default function ServerDetail() {
               Start
             </button>
           )}
+          <button
+            onClick={() => setShowEdit(true)}
+            className="px-4 py-2 rounded-lg bg-gray-700/50 text-gray-300 text-sm hover:bg-gray-700 transition-colors"
+          >
+            Edit Settings
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("Delete this server and all its data?")) action(() => api.deleteServer(id)).then(() => window.history.back());
+            }}
+            disabled={actionLoading}
+            className="ml-auto px-4 py-2 rounded-lg bg-gray-800 text-gray-500 text-sm hover:text-red-400 hover:bg-gray-700 disabled:opacity-50 transition-colors"
+          >
+            Delete Server
+          </button>
         </div>
       </div>
 
       <div className="rounded-xl border border-gray-800 bg-gray-900 p-6">
-        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">
-          Console
-        </h3>
+        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Console</h3>
         <ConsoleViewer serverId={id} />
       </div>
+
+      {showEdit && game && (
+        <EditServerModal server={server} game={game} onClose={() => setShowEdit(false)} onSave={handleSave} />
+      )}
     </div>
   );
 }
@@ -133,8 +171,8 @@ export default function ServerDetail() {
 function Stat({ label, value }) {
   return (
     <div>
-      <p className="text-gray-500 text-xs uppercase tracking-wide">{label}</p>
-      <p className="text-gray-100 font-medium mt-0.5">{value}</p>
+      <p className="text-gray-500 text-xs uppercase tracking-wide truncate">{label}</p>
+      <p className="text-gray-100 font-medium mt-0.5 break-all">{value}</p>
     </div>
   );
 }
