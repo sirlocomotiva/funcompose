@@ -15,9 +15,11 @@ async function request(path, options = {}) {
 }
 
 export const api = {
+  listGames: () => request("/games"),
   listServers: () => request("/servers"),
   getServer: (id) => request(`/servers/${id}`),
   createServer: (body) => request("/servers", { method: "POST", body }),
+  updateServer: (id, body) => request(`/servers/${id}`, { method: "PUT", body }),
   deleteServer: (id) => request(`/servers/${id}`, { method: "DELETE" }),
   startServer: (id) => request(`/servers/${id}/start`, { method: "POST" }),
   stopServer: (id) => request(`/servers/${id}/stop`, { method: "POST" }),
