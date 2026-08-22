@@ -3,10 +3,11 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from routers import servers, console
+from routers import games, servers, console
 
 app = FastAPI(title="GameManager")
 
+app.include_router(games.router)
 app.include_router(servers.router)
 app.include_router(console.router)
 
