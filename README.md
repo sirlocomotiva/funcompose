@@ -59,12 +59,13 @@ docker compose -f images/7dtd/docker-compose.yml up -d --build
 - `configs/7dtd/serverconfig.xml` lists only the settings you want to change. They are merged over the game's own default file on every start, so new game defaults survive a game update. The result is written to `servers/7dtd/data/serverconfig.xml`.
 - `configs/7dtd/serveradmin.xml`, if you add one, replaces the server's admin file on every start.
 - Each folder in `configs/7dtd/Mods/` is copied into the game. A folder you delete from the repo is removed from the server. Mods bundled with the game are not touched.
+- `configs/7dtd/Data/Config/*.xml` tunes the game itself — zombie counts, horde nights, loot, items. The file you commit is a **fragment** merged over the game's own file on every start, so only the values you list change and a game update does not drop them. `spawning.xml` and `gamestages.xml` are included as worked examples.
 - Apply your changes with `docker compose -f images/7dtd/docker-compose.yml restart 7dtd`. Send one console command with `... exec 7dtd sdtd cmd "say hello"`.
 - On stop the container asks the server to save the world over telnet before shutting down.
 
 This image needs an **x86_64** host. The game's Mono runtime aborts under Rosetta and under QEMU, so the container stops before the ~14 GB download on Apple Silicon or other ARM hosts. Set `SDTD_ALLOW_EMULATION=true` to skip that check.
 
-See `images/7dtd/README.md` for all options.
+See `images/7dtd/README.md` for all options, including how to tune zombie spawns and horde size.
 
 </details>
 

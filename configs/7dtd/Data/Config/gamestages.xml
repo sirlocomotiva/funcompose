@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Your own values for gamestages.xml: this is what sets the horde night
+  ("the objective"), how hard it gets as you survive, and the loot bonus.
+
+  Same rules as spawning.xml: a fragment merged over the game's own file, only
+  the values you list change, delete the file to go back to the defaults.
+
+  How a horde night picks its numbers:
+  The game computes a "game stage" for your party:
+
+      gameStage = (playerLevel + daysSurvived) * difficultyBonus
+
+  daysSurvived grows by 1 every game day and drops by
+  daysAliveChangeWhenKilled on each death, capped at your player level.
+  The horde then uses the <gamestage stage="N"> block at or just below that
+  number, and each <spawn> in it says how many zombies to send.
+
+  So difficultyBonus and daysAliveChangeWhenKilled are the two dials that
+  decide how fast the horde grows. Leave the per-stage <spawn> lines alone if
+  you only want to change the curve.
+-->
+<gamestages>
+	<!--
+	  Hordes stop growing faster with your level (1.2 is the game default) and
+	  deaths no longer push the next horde back. Raise difficultyBonus above 1.2
+	  for a harsher curve.
+	-->
+	<config difficultyBonus="1.0" daysAliveChangeWhenKilled="0" />
+
+	<!--
+	  One concrete horde night. <gamestage stage="13"> is used around day 13.
+	  Each <spawn> is one group of that horde:
+
+	    num      = how many zombies that group sends (999 means "until the stage
+	                time is up")
+	    maxAlive = how many of them may be alive at once, per player. This is
+	                the number that decides whether the server can keep up.
+
+	  A group can appear more than once in the same stage, so match="..." needs
+	  enough attributes to pick exactly one of them. match="group=...,num=..."
+	  is shown here because num is what makes the line unique. If your selector
+	  is not unique the container stops with an error instead of guessing.
+	-->
+	<spawner name="BloodMoonHorde">
+		<gamestage stage="13">
+			<!-- more of the stage 10 group, arriving sooner -->
+			<spawn match="group=feralHordeStageGS10,num=19" num="40" maxAlive="10" />
+		</gamestage>
+	</spawner>
+</gamestages>

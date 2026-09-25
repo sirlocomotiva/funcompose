@@ -11,8 +11,12 @@ On every start, "run" applies the repo configs that are mounted at /config:
   serveradmin.xml   If present, it replaces the server's admin file.
   Mods/<name>/      Each folder is copied into the game's Mods folder.
                     A mod that you remove from the repo is removed from the server.
+  Data/Config/*.xml Your fragments are merged over the game's own tuning files
+                    (spawning.xml, gamestages.xml, loot.xml, ...) and the result
+                    replaces the game's copy, so the server reads your values.
 """
 
+import copy
 import json
 import os
 import re
@@ -24,6 +28,7 @@ import sys
 import threading
 import time
 import xml.etree.ElementTree as ET
+from xml.parsers import expat
 
 SERVER_DIR = "/server"
 DATA_DIR = "/data"
@@ -35,6 +40,12 @@ LINUX_DEPOT_ID = "294422"
 DEPOT_DOWNLOADER = "/opt/depotdownloader/DepotDownloader"
 SERVER_BINARY = "7DaysToDieServer.x86_64"
 MANAGED_MODS_FILE = ".funcompose-managed-mods.json"
+# The game's own tuning files. The repo mirrors this path under /config.
+GAME_CONFIG_SUBDIR = os.path.join("Data", "Config")
+# Pristine copies of those files, so a repo edit can be undone by removing it.
+ORIGINALS_DIR = os.path.join(DATA_DIR, ".sdtd-originals")
+APPLIED_STATE_FILE = "applied.json"
+XML_DECLARATION = '''<?xml version="1.0" encoding="UTF-8"?>'''
 
 # The container layout needs these values, so they win over the repo config.
 FORCED_PROPERTIES = {
@@ -186,6 +197,238 @@ def sync_mods(config_mods_dir, server_mods_dir):
         json.dump(current, state_file)
 
 
+# --- Data/Config overlays ----------------------------------------------------
+
+def parse_match(value, tag):
+    """Turn match="a=1,b=2" into {"a": "1", "b": "2"}."""
+    identity = {}
+    for pair in value.split(","):
+        pair = pair.strip()
+        if not pair:
+            continue
+        key, sep, val = pair.partition("=")
+        if not sep:
+            fail(f'<{tag}> has match="{value}": expected match="attr=value,attr=value"')
+        identity[key.strip()] = val.strip()
+    if not identity:
+        fail(f"<{tag}> has an empty match attribute")
+    return identity
+
+
+def identity_of(element):
+    """The attributes that pick this element out of its siblings.
+
+    An explicit match="attr=value" always wins. Otherwise name, otherwise id.
+    A container with none of those is identified by every attribute it carries,
+    because a fragment normally restates only the key. A leaf is not: there its
+    attributes are the values to change, so it is identified by being the only
+    element of that tag, or by an explicit match.
+    """
+    if "match" in element.attrib:
+        return parse_match(element.attrib["match"], element.tag)
+    for key in ("name", "id"):
+        if key in element.attrib:
+            return {key: element.attrib[key]}
+    if len(element):
+        return dict(element.attrib)
+    return {}
+
+
+def describe(element, identity):
+    shown = ",".join(f'{key}="{value}"' for key, value in identity.items())
+    return f"{element.tag}[{shown}]" if shown else element.tag
+
+
+def locate(parent, child):
+    """Find the element of the base file that this overlay element refers to.
+
+    Returns (element_or_None, status) where status is "ok", "missing" or
+    "ambiguous".
+    """
+    identity = identity_of(child)
+    # element.tag is a callable for comments, so this also drops them.
+    candidates = [element for element in parent if element.tag == child.tag]
+    if not candidates:
+        return None, "missing"
+    if identity:
+        matched = [
+            element for element in candidates
+            if all(element.get(key) == value for key, value in identity.items())
+        ]
+        if len(matched) == 1:
+            return matched[0], "ok"
+        if matched:
+            return None, "ambiguous"
+        return None, "missing"
+    if len(candidates) == 1:
+        return candidates[0], "ok"
+    return None, "ambiguous"
+
+
+def merge_overlay(base, overlay, path, report, known_tags):
+    """Copy values from the overlay fragment into the base tree, in place."""
+    for child in overlay:
+        if not isinstance(child.tag, str):
+            continue  # comment or processing instruction
+        identity = identity_of(child)
+        here = f"{path} > {describe(child, identity)}"
+        target, status = locate(base, child)
+        if status == "ambiguous":
+            same_tag = len([element for element in base if element.tag == child.tag])
+            if identity and "match" not in child.attrib:
+                detail = f"({len(same_tag)} <{child.tag}> here, none of them match {identity})"
+            else:
+                detail = f"({same_tag} <{child.tag}> here, {len(identity)} attribute(s) given)"
+            fail(f"{here} is ambiguous in the game's file {detail}. "
+                 f'Add more attributes to match="..." so exactly one element matches.')
+        if target is None:
+            if "match" in child.attrib:
+                log(f"WARNING: {here}: nothing in the game's file matches that selector, "
+                    "so the element was ADDED. Check the attribute values.")
+            elif child.tag not in known_tags:
+                log(f"WARNING: {here}: the game's file has no <{child.tag}> element. Check the spelling.")
+            base.append(copy.deepcopy(child))
+            report["added"].append(here)
+            continue
+        for key, value in child.attrib.items():
+            if key == "match":
+                continue
+            if target.get(key) != value:
+                report["changed"] += 1
+                report["touched"].add(here)
+                target.set(key, value)
+        if len(child):
+            merge_overlay(target, child, here, report, known_tags)
+
+
+def check_written_xml(path):
+    """Refuse to leave a file the game could not read."""
+    try:
+        parse_xml(path)
+    except SystemExit:
+        fail(f"{path} is not valid XML after merging. Nothing was changed in the repo; "
+             "check the WARNING lines above and restart.")
+
+
+def read_prolog(path):
+    """Everything before the root element: the declaration and its comments.
+
+    The offset comes from a real parser, because these files put example XML
+    inside the comment in front of the root, so searching for "<" by hand lands
+    inside the comment and would truncate it.
+    """
+    with open(path, "rb") as handle:
+        data = handle.read()
+    parser = expat.ParserCreate()
+    start_at = []
+
+    def on_start_element(_name, _attributes):
+        if not start_at:
+            start_at.append(parser.CurrentByteIndex)
+
+    parser.StartElementHandler = on_start_element
+    try:
+        parser.Parse(data, True)
+    except expat.ExpatError:
+        return XML_DECLARATION + "\n"
+    if not start_at:
+        return XML_DECLARATION + "\n"
+    return data[: start_at[0]].decode("utf-8")
+
+
+def merge_game_config(base_path, overlay_path, output_path):
+    """Write the game's tuning file with the repo fragment applied on top."""
+    base_tree = parse_xml(base_path)
+    overlay_tree = parse_xml(overlay_path)
+    base_root = base_tree.getroot()
+    overlay_root = overlay_tree.getroot()
+    name = os.path.basename(overlay_path)
+    if base_root.tag != overlay_root.tag:
+        fail(f"{name}: the root element must be <{base_root.tag}>, not <{overlay_root.tag}>")
+    known_tags = {element.tag for element in base_root.iter()}
+    report = {"changed": 0, "touched": set(), "added": []}
+    merge_overlay(base_root, overlay_root, name, report, known_tags)
+    # Serialize the root by hand so the comments in front of it (the file's table
+    # of contents) survive, which ET.tostring on the root would drop.
+    body = ET.tostring(base_root, encoding="unicode")
+    prolog = read_prolog(base_path)
+    with open(output_path, "w", encoding="utf-8") as handle:
+        handle.write(prolog)
+        handle.write(body)
+        if not body.endswith("\n"):
+            handle.write("\n")
+    check_written_xml(output_path)
+    parts = [f"{report['changed']} value(s) in {len(report['touched'])} element(s)"]
+    if report["added"]:
+        parts.append(f"{len(report['added'])} added element(s)")
+    log(f"Applied {name}: " + ", ".join(parts) + f" -> {output_path}")
+
+
+def apply_game_configs(config_dir=CONFIG_DIR, server_dir=SERVER_DIR, data_dir=DATA_DIR):
+    """Merge every repo Data/Config fragment over the game's own file.
+
+    A fragment that is deleted from the repo is undone on the next start, because
+    the merge always runs against a pristine copy of the file as the game shipped
+    it rather than against the previous result.
+    """
+    overlay_dir = os.path.join(config_dir, GAME_CONFIG_SUBDIR)
+    target_dir = os.path.join(server_dir, GAME_CONFIG_SUBDIR)
+    originals_dir = os.path.join(data_dir, ORIGINALS_DIR, GAME_CONFIG_SUBDIR)
+    overlays = {}
+    if os.path.isdir(overlay_dir):
+        overlays = {
+            name: os.path.join(overlay_dir, name)
+            for name in sorted(os.listdir(overlay_dir))
+            if name.endswith(".xml") and not name.startswith(".")
+        }
+
+    previously_applied = []
+    state_path = os.path.join(data_dir, ORIGINALS_DIR, APPLIED_STATE_FILE)
+    if os.path.isfile(state_path):
+        try:
+            with open(state_path) as handle:
+                previously_applied = json.load(handle)
+        except (OSError, ValueError):
+            previously_applied = []
+
+    # Undo fragments that were removed from the repo.
+    for name in sorted(set(previously_applied) - set(overlays)):
+        original_path = os.path.join(originals_dir, name)
+        target_path = os.path.join(target_dir, name)
+        if os.path.isfile(original_path) and os.path.isfile(target_path):
+            shutil.copyfile(original_path, target_path)
+            log(f"Restored the game's own {name} (its repo fragment is gone).")
+
+    applied = []
+    for name, overlay_path in overlays.items():
+        target_path = os.path.join(target_dir, name)
+        if not os.path.isfile(target_path):
+            log(f"WARNING: {overlay_path} has no matching file in the game. Check the spelling.")
+            continue
+        original_path = os.path.join(originals_dir, name)
+        if not os.path.isfile(original_path):
+            # Keep the file as the game shipped it, so removing the fragment later
+            # restores the default instead of leaving the last merge in place.
+            os.makedirs(originals_dir, exist_ok=True)
+            shutil.copyfile(target_path, original_path)
+        merge_game_config(original_path, overlay_path, target_path)
+        applied.append(name)
+
+    os.makedirs(os.path.dirname(state_path), exist_ok=True)
+    with open(state_path, "w") as handle:
+        json.dump(applied, handle, indent=2)
+
+
+def check_game_configs(config_dir=CONFIG_DIR):
+    """Stop before the long game update if a repo fragment is broken XML."""
+    overlay_dir = os.path.join(config_dir, GAME_CONFIG_SUBDIR)
+    if not os.path.isdir(overlay_dir):
+        return
+    for name in sorted(os.listdir(overlay_dir)):
+        if name.endswith(".xml") and not name.startswith("."):
+            parse_xml(os.path.join(overlay_dir, name))
+
+
 def check_repo_config(config_dir=CONFIG_DIR):
     """Stop before the long game update if a repo config file is broken."""
     config_file = os.path.join(config_dir, "serverconfig.xml")
@@ -194,6 +437,7 @@ def check_repo_config(config_dir=CONFIG_DIR):
     admin_file = os.path.join(config_dir, "serveradmin.xml")
     if os.path.isfile(admin_file):
         parse_xml(admin_file)
+    check_game_configs(config_dir)
 
 
 def apply_repo_config(config_dir=CONFIG_DIR, server_dir=SERVER_DIR, data_dir=DATA_DIR):
@@ -206,6 +450,7 @@ def apply_repo_config(config_dir=CONFIG_DIR, server_dir=SERVER_DIR, data_dir=DAT
     )
     apply_admin_file(config_dir, data_dir, properties.get("AdminFileName", "serveradmin.xml"))
     sync_mods(os.path.join(config_dir, "Mods"), os.path.join(server_dir, "Mods"))
+    apply_game_configs(config_dir, server_dir, data_dir)
     return config_file, properties
 
 

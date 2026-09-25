@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Your own values for spawning.xml (roaming zombies inside POIs and in the open).
+
+  This file is a FRAGMENT. Every element here is looked up in the game's own
+  spawning.xml and only the values you list are changed. Anything you leave out
+  keeps the default of the installed game version, so a game update will not
+  silently drop your settings. Delete this file to go back to the defaults.
+
+  Comments are fine anywhere; the game file's own comments are kept.
+
+  Each <entityspawner> is a spawn point, found by its name="".
+  TotalAlive  = how many of that kind may be alive at the same time.
+  TotalPerWave= how many are released per wave.
+
+  The names below are the game's roaming spawners. The full list, with the
+  description of every property, is in the game's own file after the first
+  start:  servers/7dtd/server/Data/Config/spawning.xml
+-->
+<spawning>
+	<entityspawner name="SpawnExtraSmall">
+		<day value="*">
+			<property name="TotalAlive" value="6" />
+			<property name="TotalPerWave" value="8" />
+		</day>
+	</entityspawner>
+
+	<entityspawner name="SpawnSmall">
+		<day value="*">
+			<property name="TotalAlive" value="10" />
+			<property name="TotalPerWave" value="18" />
+		</day>
+	</entityspawner>
+
+	<entityspawner name="SpawnMedium">
+		<day value="*">
+			<property name="TotalAlive" value="16" />
+			<property name="TotalPerWave" value="28" />
+		</day>
+	</entityspawner>
+
+	<entityspawner name="SpawnLarge">
+		<day value="*">
+			<property name="TotalAlive" value="22" />
+			<property name="TotalPerWave" value="38" />
+		</day>
+	</entityspawner>
+
+	<entityspawner name="SpawnExLarge">
+		<day value="*">
+			<property name="TotalAlive" value="28" />
+			<property name="TotalPerWave" value="48" />
+		</day>
+	</entityspawner>
+</spawning>

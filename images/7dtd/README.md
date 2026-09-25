@@ -39,6 +39,122 @@ Notes:
 - The container always sets `UserDataFolder=/data` and `TelnetEnabled=true`. Telnet is how it saves and stops the server cleanly. Without a `TelnetPassword`, telnet only listens inside the container.
 - If you change `ServerPort`, also change the ports in `images/7dtd/docker-compose.yml`.
 
+## Tune the game itself (zombies, hordes, loot, items)
+
+`serverconfig.xml` covers the server settings. Everything else the game can be
+tuned with lives in the game's own XML files under `Data/Config/` — 46 of them:
+`spawning.xml` (zombies roaming in POIs and in the open), `gamestages.xml` (the
+horde night, how fast it gets harder, horde loot), `loot.xml`, `items.xml`,
+`blocks.xml`, `entitygroups.xml`, `buffs.xml` and more.
+
+You keep those settings in this repo too. Put a file with the **same name** in
+`configs/7dtd/Data/Config/`:
+
+```
+configs/7dtd/
+├── serverconfig.xml                 # server settings (merged, see above)
+├── Data/Config/
+│   ├── spawning.xml                 # your zombie counts
+│   └── gamestages.xml               # your horde-night tuning
+└── Mods/
+```
+
+The file you commit is a **fragment**, not a copy of the game's file. On every
+start each fragment is merged over the game's own file and the result replaces
+it, so the server reads your values:
+
+- only the values you list change, everything else keeps the default of the
+  installed game version, so a game update will not drop your settings
+- the game's own `<!-- comments -->` are kept, so the file still documents itself
+- delete a fragment and the next start restores the game's own file
+
+### Finding the values to change
+
+After the first start, the game's own files with every property documented are
+on disk:
+
+```bash
+less servers/7dtd/server/Data/Config/spawning.xml
+less servers/7dtd/server/Data/Config/gamestages.xml
+```
+
+The merged result is written back to the same path, so you can also read your
+own values there.
+
+### How an element in your fragment is matched
+
+Your element is looked up in the game's file, and the attributes you give are
+set on it. It is found by, in order:
+
+1. `match="attr=value,attr=value"` — use this when the element has no `name`.
+   The file stops with an error if that does not pick exactly one element.
+2. its `name` attribute
+3. its `id` attribute
+4. for an element that has children, all the attributes you wrote
+5. for a single element, if it is the only one of its tag at that spot
+
+`match=` is stripped from the output; the other attributes are written as they
+are. A fragment can also **add** elements that the game does not have.
+
+### Example: more zombies
+
+```xml
+<spawning>
+	<entityspawner name="SpawnSmall">
+		<day value="*">
+			<property name="TotalAlive" value="10" />    <!-- alive at once -->
+			<property name="TotalPerWave" value="18" />  <!-- released per wave -->
+		</day>
+	</entityspawner>
+</spawning>
+```
+
+### Example: the horde night
+
+The game computes a "game stage" for your party:
+
+```
+gameStage = (playerLevel + daysSurvived) * difficultyBonus
+```
+
+`daysSurvived` grows by 1 every game day and drops by
+`daysAliveChangeWhenKilled` on each death, capped at your player level. The
+horde then uses the `<gamestage stage="N">` block at or just below that number.
+So these two values are the dials for how fast a horde grows:
+
+```xml
+<gamestages>
+	<config difficultyBonus="1.0" daysAliveChangeWhenKilled="0" />
+	<spawner name="BloodMoonHorde">
+		<gamestage stage="13">
+			<spawn match="group=feralHordeStageGS10,num=19" num="40" maxAlive="10" />
+		</gamestage>
+	</spawner>
+</gamestages>
+```
+
+A group can appear more than once in the same stage, so `match=` needs enough
+attributes to pick exactly one of them — here `num=19` is what makes the line
+unique.
+
+### If something does not match
+
+- the container **stops** with an error when a selector is ambiguous, so it never
+  silently changes the wrong element
+- an unknown element name, or a `match=` that matches nothing, logs a `WARNING`
+  and the element is added
+- a fragment that is not valid XML stops the container before the game update,
+  so you find out in seconds rather than after a 14 GB download
+
+Remember that `--` is not allowed inside an XML comment.
+
+### One thing to know
+
+The merged file is written back out by an XML writer, so attributes that the
+game had spread over several lines end up on one line. The content is the same
+and all comments are kept, but do not expect the layout to be identical to the
+file the game shipped. The game reads it, not you.
+
 ## Environment variables
 
 | Variable | Default | Description |
