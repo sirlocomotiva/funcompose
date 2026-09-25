@@ -47,6 +47,27 @@ docker compose up -d --build
 
 Ports are assigned automatically from your configured range (see `.env.example`). For internet play, forward the game's ports on your router.
 
+<details>
+<summary><b>7 Days to Die: a standalone image with repo-managed config and mods</b> (optional)</summary>
+
+The dashboard uses `vinanrra/7dtd-server`. If you would rather run the server yourself and keep your settings in git, `images/7dtd` builds an image for it. It is not wired into the dashboard, so run it on its own:
+
+```bash
+docker compose -f images/7dtd/docker-compose.yml up -d --build
+```
+
+- `configs/7dtd/serverconfig.xml` lists only the settings you want to change. They are merged over the game's own default file on every start, so new game defaults survive a game update. The result is written to `servers/7dtd/data/serverconfig.xml`.
+- `configs/7dtd/serveradmin.xml`, if you add one, replaces the server's admin file on every start.
+- Each folder in `configs/7dtd/Mods/` is copied into the game. A folder you delete from the repo is removed from the server. Mods bundled with the game are not touched.
+- Apply your changes with `docker compose -f images/7dtd/docker-compose.yml restart 7dtd`. Send one console command with `... exec 7dtd sdtd cmd "say hello"`.
+- On stop the container asks the server to save the world over telnet before shutting down.
+
+This image needs an **x86_64** host. The game's Mono runtime aborts under Rosetta and under QEMU, so the container stops before the ~14 GB download on Apple Silicon or other ARM hosts. Set `SDTD_ALLOW_EMULATION=true` to skip that check.
+
+See `images/7dtd/README.md` for all options.
+
+</details>
+
 ## Configuration
 
 Copy `.env.example` → `.env` and tweak:

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!--
+	7 Days to Die server settings for funcompose.
+
+	List only the properties that you want to change. On every container start,
+	these values are merged over the default serverconfig.xml of the installed
+	game version. Properties that are not listed keep the game default.
+
+	All properties and their descriptions: servers/7dtd/server/serverconfig.xml
+	(available after the first start).
+	The effective file: servers/7dtd/data/serverconfig.xml
+
+	To apply changes, restart the 7dtd service (see README.md).
+
+	The container always sets UserDataFolder=/data and TelnetEnabled=true.
+	If you change ServerPort, also change the ports of the 7dtd service in
+	docker-compose.yml.
+-->
+<ServerSettings>
+	<!-- Server browser -->
+	<property name="ServerName"				value="funcompose 7 Days to Die"/>
+	<property name="ServerDescription"		value="A 7 Days to Die server hosted with funcompose"/>
+	<property name="ServerPassword"			value=""/>					<!-- Empty = no password -->
+	<property name="ServerVisibility"		value="2"/>					<!-- 2 = public, 1 = friends only, 0 = not listed -->
+	<property name="Region"					value="Europe"/>
+	<property name="ServerMaxPlayerCount"	value="8"/>
+
+	<!-- World. World settings are fixed when a save is created. Change GameName to start a new save. -->
+	<property name="GameWorld"				value="Navezgane"/>			<!-- "RWG" for a random world, or a world name such as "Navezgane" or "Pregen08k01" -->
+	<property name="WorldGenSeed"			value="funcompose"/>		<!-- Used only when GameWorld is RWG -->
+	<property name="WorldGenSize"			value="6144"/>				<!-- Used only when GameWorld is RWG: 6144, 8192 or 10240 -->
+	<property name="GameName"				value="funcompose"/>		<!-- Name of the save -->
+
+	<!-- Difficulty and game rules. Get a code from the sandbox options screen in the game ("copy code"). -->
+	<property name="SandboxCode"			value="AAAJABJACJADJARFBNC"/>	<!-- Default: Adventurer -->
+
+	<!-- Admin tools. The web dashboard needs port 8080 in docker-compose.yml. -->
+	<property name="WebDashboardEnabled"	value="false"/>
+	<property name="EACEnabled"				value="true"/>
+</ServerSettings>
