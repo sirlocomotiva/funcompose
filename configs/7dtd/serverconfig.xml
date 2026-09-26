@@ -73,7 +73,7 @@
 	<property name="CameraRestrictionMode"			value="0"/>					<!-- 0 = Players can freely swap between first and third person camera modes, 1 = Restricted to first person, 2 = Restricted to third person -->
 
 	<!-- Performance related -->
-	<property name="MaxSpawnedZombies"				value="96" />				<!-- This count covers the entire world. It is scaled based on use case (x1.9 blood moons, x2.1 sleepers). Changing this setting can have a huge impact on performance. -->
+	<property name="MaxSpawnedZombies"				value="128" />				<!-- This count covers the entire world. It is scaled based on use case (x1.9 blood moons, x2.1 sleepers). Changing this setting can have a huge impact on performance. -->
 	<property name="MaxSpawnedAnimals"				value="64" />				<!-- If your server has a large number of players you can increase this limit to add more wildlife. Animals don't consume as much CPU as zombies. NOTE: That this doesn't cause more animals to spawn arbitrarily: The biome spawning system only spawns a certain number of animals in a		given area, but if you have lots of players that are all spread out then you may be hitting the limit and can increase it. -->
 	<property name="ServerMaxAllowedViewDistance"	value="12" />				<!-- Max view distance a client may request (6 - 12). High impact on memory usage and performance. -->
 	<property name="MaxQueuedMeshLayers"			value="1000" />				<!-- Maximum amount of Chunk mesh layers that can be enqueued during mesh generation. Reducing this will improve memory usage but may increase Chunk generation time -->

@@ -96,20 +96,20 @@
 
 	<!-- *** WASTELAND_SPAWNS -->
 	<biome name="wasteland">
-		<spawn id="dz01" maxcount="1" respawndelay="0.3,0.525,0.405,0.3,0.195,0.105" time="Day" entitygroup="ZombiesWasteland" notags="commercial,industrial,downtown" />
-		<spawn id="dz04" maxcount="1" respawndelay="1.6,2.8,2.16,1.6,1.04,0.56" time="Day" entitygroup="ZombiesAllWasteland" notags="commercial,industrial,downtown" />
-		<spawn id="nz01" maxcount="2" respawndelay="0.003,0.005,0.004,0.003,0.002,0.002" time="Night" entitygroup="ZombiesWastelandNight" notags="commercial,industrial,downtown" />
+		<spawn id="dz01" maxcount="2" respawndelay="0.3,0.525,0.405,0.3,0.195,0.105" time="Day" entitygroup="ZombiesWasteland" notags="commercial,industrial,downtown" />
+		<spawn id="dz04" maxcount="2" respawndelay="1.6,2.8,2.16,1.6,1.04,0.56" time="Day" entitygroup="ZombiesAllWasteland" notags="commercial,industrial,downtown" />
+		<spawn id="nz01" maxcount="3" respawndelay="0.003,0.005,0.004,0.003,0.002,0.002" time="Night" entitygroup="ZombiesWastelandNight" notags="commercial,industrial,downtown" />
 
-		<spawn id="dz02" maxcount="4" respawndelay="0.033,0.058,0.045,0.033,0.021,0.012" time="Day" entitygroup="ZombiesAllWasteland" tags="commercial,industrial" notags="downtown" />
-		<spawn id="nz02" maxcount="4" respawndelay="0.002,0.004,0.003,0.002,0.002,0.002" time="Night" entitygroup="ZombiesWastelandNight" tags="commercial,industrial" notags="downtown" />
+		<spawn id="dz02" maxcount="5" respawndelay="0.033,0.058,0.045,0.033,0.021,0.012" time="Day" entitygroup="ZombiesAllWasteland" tags="commercial,industrial" notags="downtown" />
+		<spawn id="nz02" maxcount="6" respawndelay="0.002,0.004,0.003,0.002,0.002,0.002" time="Night" entitygroup="ZombiesWastelandNight" tags="commercial,industrial" notags="downtown" />
 
-		<spawn id="dz03" maxcount="4" respawndelay="0.0167,0.029,0.023,0.0167,0.011,0.006" time="Day" entitygroup="ZombiesWastelandDowntown" tags="downtown" />
-		<spawn id="nz03" maxcount="4" respawndelay="0.002,0.004,0.003,0.002,0.002,0.002" time="Night" entitygroup="ZombiesWastelandDowntown" tags="downtown" />
+		<spawn id="dz03" maxcount="5" respawndelay="0.0167,0.029,0.023,0.0167,0.011,0.006" time="Day" entitygroup="ZombiesWastelandDowntown" tags="downtown" />
+		<spawn id="nz03" maxcount="6" respawndelay="0.002,0.004,0.003,0.002,0.002,0.002" time="Night" entitygroup="ZombiesWastelandDowntown" tags="downtown" />
 
-		<spawn id="aa01" maxcount="1" respawndelay="1.5,2.625,2.025,1.5,0.975,0.525" time="Any" entitygroup="WildGameForest" type="animal" /> <!-- Rabbit, Chicken -->
-		<spawn id="na01" maxcount="1" respawndelay="3.2,3.2,3.2,3.2,2.08,1.12" time="Night" entitygroup="WildGameStagNight" type="animal" /> <!-- Stag -->
-		<spawn id="ae01" maxcount="1" respawndelay="0.9,1.575,1.215,0.9,0.585,0.315" time="Any" entitygroup="EnemyAnimalsWasteland" /> <!-- Zombie Animals -->
-		<spawn id="ne01" maxcount="1" respawndelay="0.6,1.05,0.81,0.6,0.39,0.21" time="Night" entitygroup="EnemyAnimalsWastelandNight" /> <!-- Zombie Animals -->
+		<spawn id="aa01" maxcount="2" respawndelay="1.5,2.625,2.025,1.5,0.975,0.525" time="Any" entitygroup="WildGameForest" type="animal" /> <!-- Rabbit, Chicken -->
+		<spawn id="na01" maxcount="2" respawndelay="3.2,3.2,3.2,3.2,2.08,1.12" time="Night" entitygroup="WildGameStagNight" type="animal" /> <!-- Stag -->
+		<spawn id="ae01" maxcount="2" respawndelay="0.9,1.575,1.215,0.9,0.585,0.315" time="Any" entitygroup="EnemyAnimalsWasteland" /> <!-- Zombie Animals -->
+		<spawn id="ne01" maxcount="2" respawndelay="0.6,1.05,0.81,0.6,0.39,0.21" time="Night" entitygroup="EnemyAnimalsWastelandNight" /> <!-- Zombie Animals -->
 	</biome>
 
 
@@ -471,8 +471,8 @@
 		<day value="*"><!--* means it is used when no day is specified -->
 			<property name="ResetToday" value="true" />
 			<property name="EntityGroupName" value="ZombieScouts" />
-			<property name="TotalAlive" value="1" />
-			<property name="TotalPerWave" value="1" />
+			<property name="TotalAlive" value="2" />
+			<property name="TotalPerWave" value="2" />
 		</day>
 	</entityspawner>
 	<entityspawner name="Scouts2" dynamic="true" wrapMode="wrap">
@@ -480,8 +480,8 @@
 			<property name="ResetToday" value="true" />
 			<property name="EntityGroupName" value="ZombieScouts" />
 			<property name="DelayBetweenSpawns" value="4" />
-			<property name="TotalAlive" value="2" />
-			<property name="TotalPerWave" value="2" />
+			<property name="TotalAlive" value="3" />
+			<property name="TotalPerWave" value="3" />
 		</day>
 	</entityspawner>
 	<entityspawner name="ScoutsFeral" dynamic="true" wrapMode="wrap">
@@ -489,8 +489,8 @@
 			<property name="ResetToday" value="true" />
 			<property name="EntityGroupName" value="ZombieScoutsFeral" />
 			<property name="DelayBetweenSpawns" value="3" />
-			<property name="TotalAlive" value="2" />
-			<property name="TotalPerWave" value="1,2" />
+			<property name="TotalAlive" value="3" />
+			<property name="TotalPerWave" value="3,4" />
 		</day>
 	</entityspawner>
 	<entityspawner name="ScoutsRadiated" dynamic="true" wrapMode="wrap">
@@ -498,8 +498,8 @@
 			<property name="ResetToday" value="true" />
 			<property name="EntityGroupName" value="ZombieScoutsRadiated" />
 			<property name="DelayBetweenSpawns" value="3" />
-			<property name="TotalAlive" value="2" />
-			<property name="TotalPerWave" value="1,2" />
+			<property name="TotalAlive" value="3" />
+			<property name="TotalPerWave" value="3,4" />
 		</day>
 	</entityspawner>
 
