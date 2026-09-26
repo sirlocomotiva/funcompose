@@ -28,7 +28,8 @@ change and keeps the ones you did. See `images/7dtd/README.md` for the details.
 
 | File | What it controls |
 | --- | --- |
-| `serverconfig.xml` | The server: name, password, slots, ports, world and seed, difficulty, day length, blood moon frequency, loot amount, land claims, drops on death. Every setting has its description next to it. |
+| `serverconfig.xml` | The server: name, password, slots, ports, world and seed, land claims, view distance, zombie limits. Every setting has its description next to it. |
+| `sandbox.xml` | The game's sandbox options: loot abundance, XP, damage, zombie speed, blood moons, day length, air drops, crafting, traders, quests per day and per tier. Each option lists its default and the values the game offers. Not a game file: the container turns it into the `SandboxCode` of `serverconfig.xml`. |
 | `serveradmin.xml` | Admins, whitelist, bans, command permission levels, web API tokens. See the note below. |
 | `platform.cfg` | The platforms the server registers with (Steam, crossplay through EOS, Xbox, PlayStation). |
 
@@ -84,7 +85,7 @@ change and keeps the ones you did. See `images/7dtd/README.md` for the details.
 | `Data/Config/signs.xml` | Icons and colors for signs. |
 | `Data/Config/physicsbodies.xml` | Ragdoll and physics setup for bodies. |
 | `Data/Config/nav_objects.xml` | Map, compass and screen markers. |
-| `Data/Config/sandbox_overrides.xml` | Your own sandbox (difficulty) presets, and sandbox options to lock at their default. The file lists every option. |
+| `Data/Config/sandbox_overrides.xml` | Sandbox presets for the new game screen, and sandbox options to lock at their default. Set the server's options in `sandbox.xml` instead. |
 | `Data/Config/events.xml` | Dated events, for example seasonal holidays. |
 | `Data/Config/BlockUpdates.csv` | Old block names and what they were converted to, for older saves. |
 | `Data/Config/OversizedConversionTargets.txt` | Block names the game uses when it converts oversized blocks. Internal. |

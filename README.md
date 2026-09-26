@@ -20,6 +20,7 @@ The first start downloads the game (about 14 GB, 18 GB on disk) into
 ## How it works
 
 - `configs/7dtd/` holds a copy of **every file you can configure**: `serverconfig.xml`, `serveradmin.xml`, `platform.cfg` and all 59 files in `Data/Config` (zombies, hordes, loot, items, blocks, traders, progression, ...). Edit them before you create the server. `configs/7dtd/README.md` says what each one controls.
+- `configs/7dtd/sandbox.xml` sets the game's sandbox options by name (loot abundance, XP, day length, quests per day, trader settings, ...). The container turns it into the `SandboxCode` setting on every start.
 - On every start, a file you changed replaces the game's own copy. Files you did not change are left alone, and undoing a change or deleting the file brings the game's copy back. For `serverconfig.xml` only the settings you changed are applied; the result is written to `servers/7dtd/data/serverconfig.xml`.
 - `pull` downloads just those files (a few MB) with the same Steam branch as the server, so it also works on Apple Silicon. After a game update, run it again: it updates the files you did not change and keeps the ones you did.
 - Each folder in `configs/7dtd/Mods/` is copied into the game. A folder you delete from the repo is removed from the server. Mods bundled with the game are not touched.

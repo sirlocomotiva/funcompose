@@ -8,10 +8,15 @@ Commands:
                     game update: files you did not change are updated, files
                     you changed are kept.
   sdtd cmd <text>   Send one console command to the running server over telnet.
+  sdtd sandbox      Print the sandbox code that /config/sandbox.xml makes.
+  sdtd sandbox <code>
+                    Write the options of a sandbox code (from the game's Sandbox
+                    Options screen) into /config/sandbox.xml.
 
 On every start, "run" applies the repo configs that are mounted at /config:
   serverconfig.xml  The settings you changed are applied over the game's
                     default file. The result is written to /data/serverconfig.xml.
+  sandbox.xml       Turned into the SandboxCode setting of serverconfig.xml.
   serveradmin.xml   Once you change it, it replaces the server's admin file.
   Mods/<name>/      Each folder is copied into the game's Mods folder.
                     A mod that you remove from the repo is removed from the server.
@@ -54,8 +59,12 @@ ADMIN_TEMPLATE = "/usr/local/share/sdtd/serveradmin.xml"
 # Written by "sdtd pull" into /config: each file's hash as the game shipped it,
 # which is how "run" tells the files you changed from the ones you did not.
 PULLED_STATE_FILE = ".game-files.json"
+# Sandbox options (loot, XP, zombies, traders, ...) by name. The game only reads them
+# as one SandboxCode setting, so "run" builds that code from this file.
+SANDBOX_FILE = "sandbox.xml"
+SANDBOX_CODE_VERSION = "A"
 # Entries in /config that are not plain copies of game files.
-NOT_GAME_FILES = ("serverconfig.xml", "serveradmin.xml", "Mods")
+NOT_GAME_FILES = ("serverconfig.xml", "serveradmin.xml", SANDBOX_FILE, "Mods")
 # The game's own copies of the files you replaced, so a change can be undone.
 ORIGINALS_SUBDIR = ".sdtd-originals"
 ORIGINALS_STATE_FILE = ".state.json"
@@ -201,10 +210,10 @@ def parse_xml(path):
         fail(f"{path} is not valid XML: {error}. Fix the file and restart the container.")
 
 
-def read_properties(tree, path):
+def read_properties(tree, path, root_tag="ServerSettings"):
     root = tree.getroot()
-    if root.tag != "ServerSettings":
-        fail(f"{path}: the root element must be <ServerSettings>, not <{root.tag}>")
+    if root.tag != root_tag:
+        fail(f"{path}: the root element must be <{root_tag}>, not <{root.tag}>")
     properties = {}
     for element in root.iter("property"):
         name = element.get("name")
@@ -215,13 +224,15 @@ def read_properties(tree, path):
     return properties
 
 
-def merge_server_config(default_path, overrides_path, output_path, pulled_defaults):
+def merge_server_config(default_path, overrides_path, output_path, pulled_defaults, generated=None):
     """Write the game's default config with the repo properties applied.
 
     A property that still has the value "sdtd pull" copied from the game is
-    left alone, so the game's current default applies to it.
+    left alone, so the game's current default applies to it. generated holds
+    properties made from other repo files, which win over serverconfig.xml.
     Returns the effective properties.
     """
+    generated = generated or {}
     tree = parse_xml(default_path)
     root = tree.getroot()
     elements = {element.get("name"): element for element in root.iter("property")}
@@ -239,12 +250,17 @@ def merge_server_config(default_path, overrides_path, output_path, pulled_defaul
         if name in FORCED_PROPERTIES and value != FORCED_PROPERTIES[name]:
             log(f"WARNING: {name} is managed by the container; ignoring your value {value!r}.")
             continue
+        if name in generated:
+            if value != generated[name]:
+                log(f"WARNING: ignoring {name} in serverconfig.xml: {SANDBOX_FILE} sets it. "
+                    f'To use that code, run "sdtd sandbox {value}" or delete {SANDBOX_FILE}.')
+            continue
         if name not in elements:
             log(f"WARNING: {name} is not in the game's default serverconfig.xml. Check the spelling.")
         set_property(root, elements, name, value)
         applied += 1
 
-    for name, value in FORCED_PROPERTIES.items():
+    for name, value in list(generated.items()) + list(FORCED_PROPERTIES.items()):
         set_property(root, elements, name, value)
 
     notice = ET.Comment(
@@ -391,6 +407,356 @@ def sync_mods(config_mods_dir, server_mods_dir):
         json.dump(current, state_file)
 
 
+# --- sandbox.xml ------------------------------------------------------------
+
+
+def percent(*values):
+    return tuple(f"{value}%" for value in values)
+
+
+# The values of each sandbox option, in the game's order: a code stores the position.
+SANDBOX_VALUES = {
+    "DamageValues": percent(0, 25, 35, 50, 65, 75, 85, 100, 125, 150, 200, 250, 300),
+    "DamageValuesNoNone": percent(25, 35, 50, 65, 75, 85, 100, 125, 150, 200, 250, 300),
+    "PlayerSpeedValues": percent(0, 25, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 200, 300),
+    "PlayerSpeedValuesWithNone": percent(25, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 200, 300),
+    "SpeedValues": percent(0, 25, 50, 75, 100, 125, 150, 200, 300),
+    "StaminaUsage": percent(0, 25, 50, 75, 100, 125, 150, 175, 200),
+    "LootAbundanceValues": percent(0, 25, 35, 50, 65, 75, 85, 100, 125, 150, 200, 300, 400, 500),
+    "ZombieRageChance": percent(0, 15, 30, 35, 40, 50, 60, 75, 90, 100),
+    "ZombieSpeeds": ("walk", "jog", "run", "sprint", "nightmare"),
+    "AISmellMode": ("none", "walk", "jog", "run", "sprint", "nightmare"),
+    "JumpStrength": percent(0, 50, 100, 125, 150, 200, 300),
+    "StaminaRegen": percent(25, 50, 75, 100, 125, 150, 200, 300),
+    "XPGain": percent(0, 25, 50, 75, 100, 125, 150, 175, 200, 300, 500),
+    "JarRefund": percent(0, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100),
+    "BarterValues": percent(0, 25, 50, 75, 100, 125, 150, 175, 200, 300, 400),
+    "DisabledLowDefaultHigh": ("disabled", "very low", "low", "default", "high", "very high"),
+    "LowDefaultHigh": ("very low", "low", "default", "high", "very high"),
+    "Encumbrance": ("disabled", "low", "default", "high", "very high", "full"),
+    "SkillGainRate": ("1", "2", "3", "4", "5"),
+    "PointsPer": ("0", "1", "2", "3", "4", "5", "6", "7"),
+    "StarterSkillPoints": ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+    "BloodMoonFrequency": ("disabled", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "14", "20", "30"),
+    "BloodMoonRange": ("0", "1", "2", "3", "4", "7", "10", "14", "20"),
+    "BloodMoonWarning": ("disabled", "morning", "evening"),
+    "BloodMoonCount": ("4", "6", "8", "10", "12", "16", "24", "32", "64"),
+    "AirDrops": ("disabled", "1", "1-3", "3", "3-7", "7", "1-7"),
+    "AirDropRandomTime": ("none", "morning", "mid day", "evening", "night", "all day", "any"),
+    "StormFrequency": percent(0, 50, 100, 150, 200, 300, 400, 500),
+    "QuestPerTier": ("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"),
+    "QuestPerDay": ("unlimited", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+    "TraderArea": ("yes", "claimable", "not claimable"),
+    "TraderResetInterval": ("default", "1", "2", "3", "4", "5", "6", "7", "14"),
+    "ItemTierOptions": ("default", "1", "2", "3", "4", "5", "6"),
+    "DewCollectorInput": percent(0, 100, 200, 300),
+    "ApiaryInput": percent(0, 20, 40, 60, 80, 100, 150, 200, 300),
+    "CollectorOutput": percent(100, 200, 300, 400, 500),
+    "BackpackCrafting": ("no", "yes", "limited", "workbench only"),
+    "DeathPenalty": ("none", "xp only", "injured", "permanent death"),
+    "DropOnDeath": ("none", "all", "toolbelt only", "backpack only", "equipment", "carried only", "delete all"),
+    "DropOnQuit": ("none", "all", "toolbelt only", "backpack only", "equipment", "carried only"),
+    "LoseItemsOnDeathType": ("none", "all", "toolbelt only", "backpack only", "equipment", "carried only"),
+    "DegradeItemsOnDeath": ("none", "durability", "max durability", "both"),
+    "TraderHourPresets": ("default", "morning", "mid day", "evening", "night", "bm closed", "always open"),
+    "YesNo": ("no", "yes"),
+    "Celebrate": ("no", "yes", "headshot only"),
+    "ShowXP": ("all", "bar only", "notifications only", "none"),
+    "HeadshotMode": ("none", "headshot only", "headshot finisher"),
+    "MaxEnemyType": ("normals", "strongs", "specials", "ferals", "radiated", "elites"),
+    "MaxTechType": ("none", "tech 0", "tech 1", "tech 2", "tech 3"),
+    "LoseItemCount": ("1-3", "1-5", "1-10", "1-20", "3-5", "5-7", "5-10", "7-10", "10-15", "15-20"),
+    "DayNightLength": ("10", "20", "30", "40", "50", "60", "90", "120"),
+    "DayLightLength": ("always night", "4", "6", "8", "10", "12", "14", "16", "18", "20", "always day"),
+    "LootRespawnDays": ("disabled", "5", "7", "10", "15", "20", "30", "40", "50"),
+    "Gravity": percent(50, 60, 70, 80, 90, 100),
+    "SlowToFast": ("default", "very slow", "slow", "normal", "fast", "very fast"),
+    "BiomeEnemyDensity": ("none", "default", "very low", "low", "medium", "high", "very high"),
+    "SmeltingType": ("smelter", "recipes"),
+    "RepairTypes": ("none", "repair only", "combine only", "both"),
+    "MaxDegradationAmounts": percent(0, 5, 10, 15, 20, 25),
+    "CropGrowthSpeed": ("none", "instant") + percent(20, 50, 75, 100, 150, 200, 300),
+    "ZombieFeralSense": ("disabled", "day", "night", "all"),
+    "FullChickenStressEvent": ("none", "random", "chicken drop", "angry chicken", "zombie horde", "murder chickens"),
+    "ShowLocationTypes": ("no", "yes", "name only"),
+    "MaxStackSize": percent(25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 400, 500),
+}
+
+# Each option: its number in a code, its values, and its default. In the order of the
+# game's Sandbox Options screen. Taken from SandboxOptionManager.SetupOptions in the game.
+SANDBOX_OPTIONS = {
+    "RangedDamage": (0, "DamageValues", "100%"),
+    "MeleeDamage": (1, "DamageValues", "100%"),
+    "BlockDamage": (2, "DamageValues", "100%"),
+    "TerrainDamage": (3, "DamageValues", "100%"),
+    "HeadshotMultiplier": (4, "DamageValues", "100%"),
+    "IncomingDamage": (17, "DamageValues", "100%"),
+    "WalkSpeed": (6, "PlayerSpeedValuesWithNone", "100%"),
+    "RunSpeed": (7, "PlayerSpeedValues", "100%"),
+    "CrouchSpeed": (5, "PlayerSpeedValues", "100%"),
+    "CrouchRunSpeed": (112, "PlayerSpeedValues", "100%"),
+    "JumpStrength": (8, "JumpStrength", "100%"),
+    "StaminaRegen": (10, "StaminaRegen", "100%"),
+    "StaminaUsage": (9, "StaminaUsage", "100%"),
+    "XPMultiplier": (18, "XPGain", "100%"),
+    "ShowXP": (19, "ShowXP", "all"),
+    "PlayerLevelBonusApplied": (11, "YesNo", "yes"),
+    "SkillGainRate": (116, "SkillGainRate", "1"),
+    "SkillPointsPerLevel": (117, "PointsPer", "1"),
+    "NewbieCoat": (15, "YesNo", "yes"),
+    "DeathPenalty": (26, "DeathPenalty", "xp only"),
+    "LoseItemsOnDeathType": (22, "LoseItemsOnDeathType", "none"),
+    "LoseItemsOnDeathCount": (23, "LoseItemCount", "1-3"),
+    "DegradeItemsOnDeath": (24, "DegradeItemsOnDeath", "none"),
+    "DegradeAmountOnDeath": (25, "MaxDegradationAmounts", "10%"),
+    "DropOnDeath": (27, "DropOnDeath", "all"),
+    "DropOnQuit": (28, "DropOnQuit", "none"),
+    "HungerMultiplier": (161, "StaminaUsage", "100%"),
+    "ThirstMultiplier": (162, "StaminaUsage", "100%"),
+    "InfectionChance": (160, "SpeedValues", "100%"),
+    "InfectionRate": (29, "SpeedValues", "100%"),
+    "StackSizeMultiplier": (163, "MaxStackSize", "100%"),
+    "EncumbranceModifier": (20, "Encumbrance", "default"),
+    "JarRefund": (12, "JarRefund", "60%"),
+    "EnemySpawnMode": (30, "YesNo", "yes"),
+    "MaxEnemyTier": (43, "MaxEnemyType", "elites"),
+    "BiomeDayEnemyDensity": (46, "BiomeEnemyDensity", "default"),
+    "BiomeDayZombieRespawn": (44, "SlowToFast", "default"),
+    "BiomeDayAnimalDensity": (155, "BiomeEnemyDensity", "default"),
+    "BiomeDayAnimalRespawn": (45, "SlowToFast", "default"),
+    "BiomeNightEnemyDensity": (158, "BiomeEnemyDensity", "default"),
+    "BiomeNightZombieRespawn": (156, "SlowToFast", "default"),
+    "BiomeNightAnimalDensity": (159, "BiomeEnemyDensity", "default"),
+    "BiomeNightAnimalRespawn": (157, "SlowToFast", "default"),
+    "EntityDamage": (31, "DamageValues", "100%"),
+    "EntityIncomingDamage": (42, "DamageValuesNoNone", "100%"),
+    "BlockDamageAI": (32, "DamageValues", "100%"),
+    "BlockDamageAIBM": (33, "DamageValues", "100%"),
+    "HeadshotMode": (16, "HeadshotMode", "none"),
+    "ShowHealthBars": (13, "YesNo", "no"),
+    "ShowEnemyDamage": (14, "YesNo", "no"),
+    "ZombieMove": (34, "ZombieSpeeds", "walk"),
+    "ZombieMoveNight": (35, "ZombieSpeeds", "sprint"),
+    "ZombieFeralMove": (36, "ZombieSpeeds", "sprint"),
+    "ZombieBMMove": (37, "ZombieSpeeds", "sprint"),
+    "ZombieFeralSense": (38, "ZombieFeralSense", "disabled"),
+    "AISmellMode": (39, "AISmellMode", "run"),
+    "ZombieRageChance": (41, "ZombieRageChance", "15%"),
+    "AllowZombieDigging": (40, "YesNo", "yes"),
+    "ZombiesEatAnimals": (47, "YesNo", "yes"),
+    "GlobalGSModifier": (60, "LowDefaultHigh", "default"),
+    "BiomeGSModifier": (61, "LowDefaultHigh", "default"),
+    "BiomeProgression": (55, "YesNo", "yes"),
+    "TemperatureSurvival": (56, "YesNo", "yes"),
+    "MaxTechType": (74, "MaxTechType", "tech 3"),
+    "WorkstationsInTheWild": (73, "JarRefund", "0%"),
+    "BloodMoonFrequency": (48, "BloodMoonFrequency", "7"),
+    "BloodMoonRange": (49, "BloodMoonRange", "0"),
+    "BloodMoonEnemyCount": (51, "BloodMoonCount", "8"),
+    "BloodMoonWarning": (50, "BloodMoonWarning", "morning"),
+    "AirDropFrequency": (52, "AirDrops", "3"),
+    "AirDropRandomTime": (54, "AirDropRandomTime", "none"),
+    "StormFreq": (57, "StormFrequency", "100%"),
+    "StormWarning": (58, "YesNo", "yes"),
+    "HeatMapSensitivity": (59, "DisabledLowDefaultHigh", "default"),
+    "DayNightLength": (66, "DayNightLength", "60"),
+    "DayLightLength": (67, "DayLightLength", "18"),
+    "AirDropMarker": (53, "YesNo", "yes"),
+    "AllowMap": (68, "YesNo", "yes"),
+    "AllowCompass": (69, "YesNo", "yes"),
+    "AllowScreenMarkers": (70, "YesNo", "yes"),
+    "ShowLocationInfo": (71, "ShowLocationTypes", "yes"),
+    "ShowDayTime": (72, "YesNo", "yes"),
+    "LootMaxTier": (77, "ItemTierOptions", "default"),
+    "GlobalLSModifier": (62, "LowDefaultHigh", "default"),
+    "BiomeLSModifier": (63, "LowDefaultHigh", "default"),
+    "POITierLSModifier": (64, "LowDefaultHigh", "default"),
+    "LootRespawnDays": (75, "LootRespawnDays", "7"),
+    "LootTimer": (76, "SpeedValues", "100%"),
+    "LootBagChance": (90, "LootAbundanceValues", "100%"),
+    "GlobalLootCount": (78, "LootAbundanceValues", "100%"),
+    "FoodLootCount": (79, "LootAbundanceValues", "100%"),
+    "DrinkLootCount": (80, "LootAbundanceValues", "100%"),
+    "MedicalLootCount": (81, "LootAbundanceValues", "100%"),
+    "AmmoLootCount": (82, "LootAbundanceValues", "100%"),
+    "ResourceLootCount": (83, "LootAbundanceValues", "100%"),
+    "ArmorLootCount": (84, "LootAbundanceValues", "100%"),
+    "MeleeLootCount": (85, "LootAbundanceValues", "100%"),
+    "RangedLootCount": (86, "LootAbundanceValues", "100%"),
+    "DukesLootCount": (87, "LootAbundanceValues", "100%"),
+    "CraftingMagazinesLootCount": (88, "LootAbundanceValues", "100%"),
+    "BookLootCount": (111, "LootAbundanceValues", "100%"),
+    "TreasureMapChance": (89, "PlayerSpeedValues", "100%"),
+    "MiningOutput": (101, "LootAbundanceValues", "100%"),
+    "CropOutput": (91, "LootAbundanceValues", "100%"),
+    "SeedDropOutput": (92, "LootAbundanceValues", "100%"),
+    "HarvestingOutput": (102, "LootAbundanceValues", "100%"),
+    "CropGrowthSpeed": (93, "CropGrowthSpeed", "100%"),
+    "CraftingProgression": (96, "YesNo", "yes"),
+    "CraftingMaxTier": (100, "ItemTierOptions", "default"),
+    "PointsPerMagazine": (115, "PointsPer", "1"),
+    "BackpackCrafting": (94, "BackpackCrafting", "yes"),
+    "WorkstationCrafting": (95, "YesNo", "yes"),
+    "SmeltingType": (104, "SmeltingType", "smelter"),
+    "CraftingTime": (97, "SpeedValues", "100%"),
+    "CraftingInput": (98, "SpeedValues", "100%"),
+    "CraftingOutput": (99, "StaminaRegen", "100%"),
+    "ScrappingOutput": (103, "SpeedValues", "100%"),
+    "DewCollectorTime": (105, "SpeedValues", "100%"),
+    "DewCollectorOutput": (106, "CollectorOutput", "100%"),
+    "DewCollectorInput": (107, "DewCollectorInput", "100%"),
+    "ApiaryTime": (108, "SpeedValues", "100%"),
+    "ApiaryOutput": (109, "CollectorOutput", "100%"),
+    "ApiaryInput": (110, "ApiaryInput", "100%"),
+    "ChickenCoopTime": (152, "SpeedValues", "100%"),
+    "ChickenCoopOutput": (153, "CollectorOutput", "100%"),
+    "ChickenCoopInput": (154, "ApiaryInput", "100%"),
+    "FullChickenStressEvent": (164, "FullChickenStressEvent", "random"),
+    "ItemDegradation": (21, "DisabledLowDefaultHigh", "default"),
+    "RepairTypes": (113, "RepairTypes", "both"),
+    "MaxDegradationAmount": (114, "MaxDegradationAmounts", "0%"),
+    "TradersEnabled": (128, "YesNo", "yes"),
+    "VendingEnabled": (129, "YesNo", "yes"),
+    "TraderHours": (127, "TraderHourPresets", "default"),
+    "TraderProtection": (132, "TraderArea", "yes"),
+    "TraderDialog": (126, "YesNo", "yes"),
+    "GlobalTSModifier": (65, "LowDefaultHigh", "default"),
+    "TraderMaxTier": (136, "ItemTierOptions", "default"),
+    "TraderItemAbundance": (134, "LowDefaultHigh", "default"),
+    "VendingItemAbundance": (138, "LowDefaultHigh", "default"),
+    "TraderResetInterval": (133, "TraderResetInterval", "default"),
+    "VendingResetInterval": (137, "TraderResetInterval", "default"),
+    "TraderSellPrices": (130, "BarterValues", "100%"),
+    "TraderBuyPrices": (131, "BarterValues", "100%"),
+    "TraderBuyLimit": (135, "StarterSkillPoints", "3"),
+    "ChallengesEnabled": (139, "YesNo", "yes"),
+    "QuestsEnabled": (118, "YesNo", "yes"),
+    "IntroChallengesEnabled": (140, "YesNo", "yes"),
+    "IntroQuestEnabled": (119, "YesNo", "yes"),
+    "TraderToTraderQuestsEnabled": (120, "YesNo", "yes"),
+    "BuriedQuestsEnabled": (124, "YesNo", "yes"),
+    "POIQuestsEnabled": (125, "YesNo", "yes"),
+    "QuestsPerTier": (122, "QuestPerTier", "10"),
+    "QuestProgressionDailyLimit": (123, "QuestPerDay", "4"),
+    "StarterSkillPoints": (121, "StarterSkillPoints", "4"),
+    "VehicleFuelUsage": (141, "DamageValues", "100%"),
+    "VehicleEntityDamage": (142, "DamageValues", "100%"),
+    "VehicleBlockDamage": (143, "DamageValues", "100%"),
+    "VehicleSelfDamage": (144, "DamageValues", "100%"),
+    "ElectricalOutput": (145, "StaminaRegen", "100%"),
+    "SillyCelebrate": (146, "Celebrate", "no"),
+    "SillyBigHeads": (147, "YesNo", "no"),
+    "SillyTinyZombies": (148, "YesNo", "no"),
+    "SillyLowGravity": (150, "Gravity", "100%"),
+    "SillySounds": (149, "YesNo", "no"),
+    "SillyBlackandWhite": (151, "YesNo", "no"),
+}
+
+
+def sandbox_path(config_dir=CONFIG_DIR):
+    return os.path.join(config_dir, SANDBOX_FILE)
+
+
+def read_sandbox_options(path):
+    """The values in sandbox.xml, by option name, spelled as in SANDBOX_VALUES.
+
+    Stops if a value is not one the game offers, since the code could not hold it.
+    """
+    properties = read_properties(parse_xml(path), path, "SandboxSettings")
+    chosen = {}
+    for name, value in properties.items():
+        if name not in SANDBOX_OPTIONS:
+            log(f"WARNING: {path}: the game has no sandbox option {name}. Check the spelling.")
+            continue
+        values = SANDBOX_VALUES[SANDBOX_OPTIONS[name][1]]
+        wanted = " ".join(value.lower().split())
+        match = [allowed for allowed in values if wanted in (allowed, allowed.rstrip("%"))]
+        if not match:
+            fail(f"{path}: {name} cannot be {value!r}. The game offers: {', '.join(values)}")
+        chosen[name] = match[0]
+    return chosen
+
+
+def sandbox_code(chosen):
+    """The game's code for these options: the version letter, then for each option
+    that is not at its default two letters for its number and one for its value."""
+    parts = [SANDBOX_CODE_VERSION]
+    for name, value in sorted(chosen.items(), key=lambda item: SANDBOX_OPTIONS[item[0]][0]):
+        number, value_set, default = SANDBOX_OPTIONS[name]
+        if value != default:
+            index = SANDBOX_VALUES[value_set].index(value)
+            parts.append(chr(65 + number // 26) + chr(65 + number % 26) + chr(65 + index))
+    return "".join(parts)
+
+
+def decode_sandbox_code(code):
+    """Every option's value for a code. Options the code does not list are at their default."""
+    code = code.strip().upper()
+    if not re.fullmatch(f"{SANDBOX_CODE_VERSION}([A-Z]{{3}})*", code):
+        fail(f"{code!r} is not a sandbox code. A code starts with {SANDBOX_CODE_VERSION!r}, "
+             "then has 3 letters per option, for example AAAJABJACJADJARFBNC.")
+    names = {number: name for name, (number, _, _) in SANDBOX_OPTIONS.items()}
+    values = {name: default for name, (_, _, default) in SANDBOX_OPTIONS.items()}
+    for start in range(1, len(code), 3):
+        number = (ord(code[start]) - 65) * 26 + ord(code[start + 1]) - 65
+        index = ord(code[start + 2]) - 65
+        name = names.get(number)
+        if name is None or index >= len(SANDBOX_VALUES[SANDBOX_OPTIONS[name][1]]):
+            log(f"WARNING: skipped {code[start:start + 3]} in the code: this version of "
+                "sdtd does not know that option or value.")
+            continue
+        values[name] = SANDBOX_VALUES[SANDBOX_OPTIONS[name][1]][index]
+    return values
+
+
+def write_sandbox_file(path, values):
+    """Put the values into sandbox.xml, keeping its layout and comments."""
+    text = '<?xml version="1.0"?>\n<SandboxSettings>\n</SandboxSettings>\n'
+    if os.path.isfile(path):
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+    comments = [match.span() for match in COMMENT_PATTERN.finditer(text)]
+    placed = set()
+
+    def fill(match):
+        name = match.group(2)
+        if name not in values or any(start <= match.start() < end for start, end in comments):
+            return match.group(0)
+        placed.add(name)
+        return match.group(1) + quote_attribute(values[name]) + match.group(4)
+
+    text = PROPERTY_PATTERN.sub(fill, text)
+    missing = [name for name in values if name not in placed]
+    end = text.rfind("</SandboxSettings>")
+    if end < 0:
+        fail(f"{path} has no </SandboxSettings>.")
+    text = text[:end] + "".join(
+        f'\t<property name="{name}" value="{quote_attribute(values[name])}"/>\n' for name in missing
+    ) + text[end:]
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(text)
+
+
+def sandbox(args):
+    path = sandbox_path()
+    if not args:
+        if not os.path.isfile(path):
+            fail(f"{path} is missing. Restore it from git.")
+        print(sandbox_code(read_sandbox_options(path)))
+        return
+    drop_privileges([HOME_DIR])
+    values = decode_sandbox_code(args[0])
+    try:
+        write_sandbox_file(path, values)
+    except PermissionError:
+        fail(f"cannot write {path}. Run it with the pull service, where /config is writable: "
+             "docker compose -f images/7dtd/docker-compose.yml run --rm pull sandbox <code>")
+    changed = [name for name, value in values.items() if value != SANDBOX_OPTIONS[name][2]]
+    for name in changed:
+        log(f"{name} = {values[name]} (default {SANDBOX_OPTIONS[name][2]})")
+    log(f"Wrote {path}: {len(changed)} option(s) differ from the game's defaults.")
+
+
 # --- game files (Data/Config, platform.cfg, ...) -------------------------------
 
 
@@ -480,6 +846,8 @@ def check_repo_config(config_dir=CONFIG_DIR):
     config_file = os.path.join(config_dir, "serverconfig.xml")
     if os.path.isfile(config_file):
         read_properties(parse_xml(config_file), config_file)
+    if os.path.isfile(sandbox_path(config_dir)):
+        read_sandbox_options(sandbox_path(config_dir))
     if admin_file_changed(config_dir, pulled):
         parse_xml(os.path.join(config_dir, "serveradmin.xml"))
     for rel in changed_files(config_dir, pulled):
@@ -498,10 +866,17 @@ def apply_repo_config(config_dir=CONFIG_DIR, server_dir=SERVER_DIR, data_dir=DAT
     default_config = os.path.join(server_dir, "serverconfig.xml")
     if not os.path.isfile(default_config):
         fail(f"{default_config} is missing. Is the game installed? Set SDTD_UPDATE=true.")
+    generated = {}
+    if os.path.isfile(sandbox_path(config_dir)):
+        chosen = read_sandbox_options(sandbox_path(config_dir))
+        generated["SandboxCode"] = sandbox_code(chosen)
+        changed = [name for name, value in chosen.items() if value != SANDBOX_OPTIONS[name][2]]
+        log(f"Sandbox options from {sandbox_path(config_dir)}: {len(changed)} differ from the "
+            f"game's defaults. SandboxCode={generated['SandboxCode']}")
     config_file = os.path.join(data_dir, "serverconfig.xml")
     properties = merge_server_config(
         default_config, os.path.join(config_dir, "serverconfig.xml"), config_file,
-        (pulled or {}).get("serverconfig", {}),
+        (pulled or {}).get("serverconfig", {}), generated,
     )
     apply_admin_file(config_dir, data_dir, properties.get("AdminFileName", "serveradmin.xml"), pulled)
     sync_mods(os.path.join(config_dir, "Mods"), os.path.join(server_dir, "Mods"))
@@ -872,13 +1247,15 @@ def run():
 
 
 def main():
-    if len(sys.argv) < 2 or sys.argv[1] not in ("run", "pull", "cmd"):
+    if len(sys.argv) < 2 or sys.argv[1] not in ("run", "pull", "cmd", "sandbox"):
         print(__doc__)
         sys.exit(2)
     if sys.argv[1] == "run":
         run()
     elif sys.argv[1] == "pull":
         pull()
+    elif sys.argv[1] == "sandbox":
+        sandbox(sys.argv[2:])
     else:
         command(sys.argv[2:])
 

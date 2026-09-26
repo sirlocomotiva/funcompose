@@ -31,7 +31,8 @@ on Apple Silicon, where the server itself cannot run.
 ```
 configs/7dtd/
 ├── README.md             # what each file controls
-├── serverconfig.xml      # server settings: name, slots, world, difficulty, ...
+├── serverconfig.xml      # server settings: name, slots, world, land claims, ...
+├── sandbox.xml           # sandbox options: loot, XP, zombies, traders, quests, ...
 ├── serveradmin.xml       # admins, whitelist, bans, command permissions
 ├── platform.cfg          # platforms and crossplay
 ├── Data/Config/          # the game's rules: zombies, hordes, loot, items, blocks, ...
@@ -48,6 +49,7 @@ them on **every** start:
 | File | What happens on start |
 | --- | --- |
 | `serverconfig.xml` | The settings you changed are applied over the installed game's own `serverconfig.xml`. Settings you left alone keep the game's current default. The result is `servers/7dtd/data/serverconfig.xml`. |
+| `sandbox.xml` | Turned into the `SandboxCode` setting of `serverconfig.xml`. See [Sandbox options](#sandbox-options). |
 | `serveradmin.xml` | Once you change it, it replaces the server's admin file at `servers/7dtd/data/Saves/serveradmin.xml`. Unchanged, the server keeps its own. |
 | `Mods/<ModName>/` | Each folder is copied into the game's `Mods` folder. Remove a folder from the repo and the mod is removed from the server. Mods bundled with the game are not changed. |
 | Every other file | Once you change it, your copy replaces the game's own (for example `servers/7dtd/server/Data/Config/spawning.xml`). Unchanged files are left alone. Undo your change or delete the file and the next start puts the game's copy back. |
@@ -64,10 +66,46 @@ docker compose -f images/7dtd/docker-compose.yml restart 7dtd
 Notes:
 - A typo in a property name logs a warning and the game ignores it. A broken XML file stops the container before the game update, so you find out in seconds.
 - A changed game file must keep the game's root element, or the container stops. A file with less than half of the game's elements gets a warning, because it replaces the whole file: whatever is missing from it is missing from the game.
-- World settings (`GameWorld`, `WorldGenSeed`, `WorldGenSize`) and difficulty (`SandboxCode`) are stored in a save once it exists. Change `GameName` to start a new save.
+- World settings (`GameWorld`, `WorldGenSeed`, `WorldGenSize`) are stored in a save once it exists. Change `GameName` to start a new save. Sandbox options are not: the server reads them on every start.
 - The container always sets `UserDataFolder=/data` and `TelnetEnabled=true`. Telnet is how it saves and stops the server cleanly. Without a `TelnetPassword`, telnet only listens inside the container.
 - If you change `ServerPort`, also change the ports in `images/7dtd/docker-compose.yml`.
 - While your copy of a file is in place, the game's own copy is kept in `servers/7dtd/data/.sdtd-originals/`.
+
+## Sandbox options
+
+The game's Sandbox Options screen (loot abundance, XP, zombie speed, blood moons,
+day length, traders, quests per day, ...) ends up as a single `SandboxCode` in
+`serverconfig.xml`, such as `AAAJABJACJADJARFBNC`. Instead of writing that code
+yourself, set the options by name in `configs/7dtd/sandbox.xml`:
+
+```xml
+<property name="GlobalLootCount"            value="200%"/>
+<property name="QuestProgressionDailyLimit" value="unlimited"/>
+<property name="DayNightLength"             value="90"/>
+```
+
+Each option in the file lists its default and every value the game offers, and
+starts at the value the server uses now (the Adventurer preset). On every start
+the container builds the code from the file and uses it instead of the
+`SandboxCode` in `serverconfig.xml`. The log shows the code and how many options
+differ from the defaults. A value the game does not offer stops the container
+before the game update and lists the values you can use. The server reads the
+code on every start, so a restart applies your changes to an existing save too.
+
+To use a code copied from the game's Sandbox Options screen, write its options
+into `sandbox.xml`:
+
+```bash
+docker compose -f images/7dtd/docker-compose.yml run --rm pull sandbox AAAJABJACJADJARFBNC
+```
+
+Run `... run --rm pull sandbox` without a code to print the code that
+`sandbox.xml` makes. Delete `sandbox.xml` to use the `SandboxCode` in
+`serverconfig.xml` again.
+
+The option list is taken from the game's code (`SandboxOptionManager`), because
+the game ships it in no config file. If a game update adds options, sdtd warns
+about names it does not know and about codes that contain them.
 
 ## After a game update
 
