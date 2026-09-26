@@ -112,9 +112,9 @@ Console command: gamestage
 <gamestages>
 	<!-- *** CONFIG_SETTINGS -->
 	<config
-		daysAliveChangeWhenKilled="2"
+		daysAliveChangeWhenKilled="0"
 
-		difficultyBonus="1.2"
+		difficultyBonus="1.0"
 
 		startingWeight ="1"
 		diminishingReturns ="0.5"
@@ -4468,7 +4468,7 @@ Console command: gamestage
 		<gamestage stage="13">
 			<spawn group="feralHordeStageGS10" num="15" maxAlive="6" duration="1" interval="5"/>
 			<spawn group="feralHordeStageGS10" num="15" maxAlive="6" duration="1" interval="5"/>
-			<spawn group="feralHordeStageGS10" num="19" maxAlive="6" duration="1" interval="5"/>
+			<spawn group="feralHordeStageGS10" num="40" maxAlive="10" duration="1" interval="5"/>
 			<spawn group="feralHordeStageGS13" num="19" maxAlive="6" duration="1" interval="5"/>
 			<spawn group="feralHordeStageGS13" num="19" maxAlive="8" duration="1" interval="5"/>
 			<spawn group="feralHordeStageGS13" num="19" maxAlive="6" duration="1" interval="5"/>

@@ -332,8 +332,8 @@
 			<property name="EntityGroupName" value="ZombiesAll" />
 			<property name="Time" value="Any" />
 			<property name="DelayBetweenSpawns" value="0" />
-			<property name="TotalAlive" value="2" />
-			<property name="TotalPerWave" value="2" />
+			<property name="TotalAlive" value="6" />
+			<property name="TotalPerWave" value="8" />
 			<property name="DaysToRespawnIfPlayerLeft" value="5" />
 			<property name="AttackPlayerAtOnce" value="false" />
 		</day>
@@ -346,8 +346,8 @@
 			<property name="EntityGroupName" value="ZombiesAll" />
 			<property name="Time" value="Any" />
 			<property name="DelayBetweenSpawns" value="0" />
-			<property name="TotalAlive" value="4" />
-			<property name="TotalPerWave" value="4" />
+			<property name="TotalAlive" value="10" />
+			<property name="TotalPerWave" value="18" />
 			<property name="DaysToRespawnIfPlayerLeft" value="5" />
 			<property name="AttackPlayerAtOnce" value="false" />
 		</day>
@@ -360,8 +360,8 @@
 			<property name="EntityGroupName" value="ZombiesAll" />
 			<property name="Time" value="Any" />
 			<property name="DelayBetweenSpawns" value="0" />
-			<property name="TotalAlive" value="6" />
-			<property name="TotalPerWave" value="6" />
+			<property name="TotalAlive" value="16" />
+			<property name="TotalPerWave" value="28" />
 			<property name="DaysToRespawnIfPlayerLeft" value="5" />
 			<property name="AttackPlayerAtOnce" value="false" />
 		</day>
@@ -374,8 +374,8 @@
 			<property name="EntityGroupName" value="ZombiesAll" />
 			<property name="Time" value="Any" />
 			<property name="DelayBetweenSpawns" value="0" />
-			<property name="TotalAlive" value="10" />
-			<property name="TotalPerWave" value="10" />
+			<property name="TotalAlive" value="22" />
+			<property name="TotalPerWave" value="38" />
 			<property name="DaysToRespawnIfPlayerLeft" value="5" />
 			<property name="AttackPlayerAtOnce" value="false" />
 		</day>
@@ -388,8 +388,8 @@
 			<property name="EntityGroupName" value="ZombiesAll" />
 			<property name="Time" value="Any" />
 			<property name="DelayBetweenSpawns" value="0" />
-			<property name="TotalAlive" value="12" />
-			<property name="TotalPerWave" value="12" />
+			<property name="TotalAlive" value="28" />
+			<property name="TotalPerWave" value="48" />
 			<property name="DaysToRespawnIfPlayerLeft" value="5" />
 			<property name="AttackPlayerAtOnce" value="false" />
 		</day>
