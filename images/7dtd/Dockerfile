@@ -23,6 +23,8 @@ ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 \
     HOME=/home/sdtd
 
 COPY sdtd.py /usr/local/bin/sdtd
+# "sdtd pull" copies this into the repo: the game only writes its own on the first start.
+COPY serveradmin.xml /usr/local/share/sdtd/serveradmin.xml
 RUN chmod 755 /usr/local/bin/sdtd && mkdir -p /server /data /config /home/sdtd
 
 # 26900 TCP+UDP is the game port. The game also uses the next UDP ports.
