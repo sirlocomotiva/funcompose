@@ -1,9 +1,7 @@
 # 7 Days to Die — standalone server image
 
-A 7 Days to Die dedicated server that keeps your settings in git and applies them
-on every start. This image is **not** used by the GameManager dashboard, which
-creates 7DtD servers from `vinanrra/7dtd-server` (see `backend/games.py`).
-Use it when you want every game setting and your mods managed from the repo.
+A 7 Days to Die dedicated server that keeps every game setting and your mods in
+git and applies them on every start.
 
 ## Run it
 

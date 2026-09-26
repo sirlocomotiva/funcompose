@@ -1,4 +1,4 @@
-# Standalone 7 Days to Die server. Not part of the GameManager compose file:
+# 7 Days to Die dedicated server:
 #   docker compose -f images/7dtd/docker-compose.yml up -d --build
 # Settings come from ../../configs/7dtd, game data and saves land in ../../servers/7dtd.
 #

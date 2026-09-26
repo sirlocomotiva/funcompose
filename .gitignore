@@ -1,28 +1,6 @@
-# Dependencies
-node_modules
-frontend/node_modules
-.venv
-venv
-env
-
-# Build outputs
-dist
-frontend/dist
-dist-ssr
-*.local
-
 # Python cache & bytecode
 __pycache__
 *.py[cod]
-*$py.class
-.pytest_cache
-.coverage
-htmlcov
-
-# Environment files
-.env
-.env.local
-.env.*.local
 
 # OS generated files
 .DS_Store
@@ -47,7 +25,5 @@ Thumbs.db
 .codegraph
 .codegraph/**
 
-# Server runtime data
+# Server runtime data: game files, saves, worlds
 servers/
-
-
