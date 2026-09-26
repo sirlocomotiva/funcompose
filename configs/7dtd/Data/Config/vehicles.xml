@@ -48,7 +48,7 @@ Forces:
 		<property name="upAngleMax" value="60"/>
 		<property name="upForce" value=".5"/>
 		<property name="motorTorque_turbo" value="1, 1, 2, 2"/>
-		<property name="velocityMax_turbo" value="9, 9, 15, 9"/>
+		<property name="velocityMax_turbo" value="11, 11, 17, 11"/>
 		<property name="brakeTorque" value="10"/>
 		<property name="unstickForce" value="1"/>
 		<property name="airDrag_velScale_angVelScale" value=".997, .97"/>
@@ -308,7 +308,7 @@ Forces:
 		<property name="tiltDampenThreshold" value="8"/>
 		<property name="tiltUpForce" value="5"/>
 		<property name="motorTorque_turbo" value="500, 180, 750, 180"/>
-		<property name="velocityMax_turbo" value="6, 4, 8.5, 4"/>
+		<property name="velocityMax_turbo" value="7, 5, 9.5, 5"/>
 		<property name="brakeTorque" value="3000"/>
 		<property name="hopForce" value="4, .05"/>
 		<property name="unstickForce" value=".2"/>
@@ -398,7 +398,7 @@ Forces:
 		<property name="tiltDampenThreshold" value="8"/>
 		<property name="tiltUpForce" value="5"/>
 		<property name="motorTorque_turbo" value="400, 200, 560, 200"/>
-		<property name="velocityMax_turbo" value="7, 4, 9.2, 4"/>
+		<property name="velocityMax_turbo" value="8, 5, 10.2, 5"/>
 		<property name="brakeTorque" value="3000"/>
 		<property name="hopForce" value="1.5, .2"/>
 		<property name="unstickForce" value="1"/>
@@ -510,7 +510,7 @@ Forces:
 		<property name="tiltDampenThreshold" value="8"/>
 		<property name="tiltUpForce" value="5"/>
 		<property name="motorTorque_turbo" value="1400, 500, 2100, 650"/>
-		<property name="velocityMax_turbo" value="9.8, 6, 14, 8"/>
+		<property name="velocityMax_turbo" value="10.8, 7, 15, 9"/>
 		<property name="brakeTorque" value="3000"/>
 		<property name="hopForce" value="1, .8"/>
 		<property name="unstickForce" value="1"/>
@@ -651,7 +651,7 @@ Forces:
 		<property name="tiltDampenThreshold" value="8"/>
 		<property name="tiltUpForce" value="0"/>
 		<property name="motorTorque_turbo" value="3500, 1500, 4500, 2000"/>
-		<property name="velocityMax_turbo" value="10, 8, 14, 10"/>
+		<property name="velocityMax_turbo" value="12, 10, 16, 12"/>
 		<property name="brakeTorque" value="6000"/>
 		<property name="unstickForce" value="1"/>
 		<property name="waterDrag_y_velScale_velMaxScale" value="1.8, .9, .1"/>
