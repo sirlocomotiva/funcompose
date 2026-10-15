@@ -1,0 +1,30 @@
+# Valheim dedicated server:
+#   cp images/valheim/.env.example images/valheim/.env   # then set the password
+#   docker compose -f images/valheim/docker-compose.yml up -d
+# Settings come from ../../configs/valheim, game files, worlds and backups land in ../../servers/valheim.
+#
+# Pick the world (and its modifiers) with VALHEIM_WORLD: it loads
+# ../../configs/valheim/worlds/<VALHEIM_WORLD>.env. Set it in .env, or per run:
+#   VALHEIM_WORLD=hardcore docker compose -f images/valheim/docker-compose.yml up -d
+services:
+  valheim:
+    image: ghcr.io/community-valheim-tools/valheim-server:latest
+    platform: linux/amd64 # x86_64 hosts only: steamcmd is 32-bit and does not run on Apple Silicon/ARM
+    container_name: valheim
+    restart: unless-stopped
+    cap_add:
+      - sys_nice # lets the server raise its thread priority
+    ports:
+      - "2456-2458:2456-2458/udp" # game, query, crossplay
+    env_file:
+      - ../../configs/valheim/server.env # shared server settings
+      - ../../configs/valheim/worlds/${VALHEIM_WORLD:-default}.env # world name and modifiers
+    environment:
+      SERVER_PASS: ${VALHEIM_PASSWORD:?set VALHEIM_PASSWORD in images/valheim/.env (see .env.example)}
+      PUID: "1000" # owner of the files in ../../servers/valheim (rootless Podman: 0)
+      PGID: "1000"
+    volumes:
+      - ../../servers/valheim/config:/config # worlds, backups, admin lists, BepInEx config
+      - ../../servers/valheim/server:/opt/valheim # game files (about 1 GB)
+      - ../../configs/valheim/bepinex/plugins:/config/bepinex/plugins:ro # your mods, used when BEPINEX=true
+    stop_grace_period: 2m # time to save the world on stop

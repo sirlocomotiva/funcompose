@@ -1,7 +1,9 @@
 # funcompose
 
-A 7 Days to Die dedicated server in Docker, with every game setting and your
-mods kept in git.
+Game servers in Docker, with every setting and your mods kept in git:
+
+- **7 Days to Die**: below, and `images/7dtd/README.md`
+- **Valheim**: world modifiers per world, see [Valheim](#valheim)
 
 ## Quick start
 
@@ -38,10 +40,22 @@ check.
 See `images/7dtd/README.md` for all options, what happens after a game update,
 and how to tune zombie spawns and horde size.
 
+## Valheim
+
+```bash
+cp images/valheim/.env.example images/valheim/.env   # set VALHEIM_PASSWORD
+docker compose -f images/valheim/docker-compose.yml up -d
+docker compose -f images/valheim/docker-compose.yml logs -f valheim
+```
+
+- `configs/valheim/server.env` holds the shared settings: name, public listing, crossplay, admins, updates, backups, mods.
+- Each `configs/valheim/worlds/<name>.env` is one world with its own save and world modifiers (`-preset hard -modifier raids none -setkey nomap`, ...). `VALHEIM_WORLD` in `.env` picks which one runs.
+- `configs/valheim/README.md` lists every modifier and value; `images/valheim/README.md` has the rest. Forward UDP 2456–2458. x86_64 hosts only.
+
 ## Layout
 
 ```
-configs/7dtd/     your settings and mods (in git)
-images/7dtd/      the server image and its compose file
-servers/7dtd/     game files, saves and worlds (not in git)
+configs/<game>/   your settings and mods (in git)
+images/<game>/    the server image and its compose file
+servers/<game>/   game files, saves and worlds (not in git)
 ```
