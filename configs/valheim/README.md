@@ -2,31 +2,36 @@
 
 | File | What it controls |
 | --- | --- |
-| `server.env` | Settings shared by every world: server name, public listing, crossplay, admins and bans, updates, restarts, backups, mods. |
-| `worlds/<name>.env` | One world each: its save name (`WORLD_NAME`) and its world modifiers (`SERVER_ARGS`). |
+| `server.env` | Settings for the server: name, public listing, crossplay, admins and bans, updates, restarts, backups, mods. |
+| `world.env` | The world: its save name (`WORLD_NAME`) and its modifiers (`SERVER_ARGS`). |
 | `bepinex/plugins/` | BepInEx mods (`.dll` files or folders), loaded when `BEPINEX=true`. |
 
 The password is not here: it is `VALHEIM_PASSWORD` in `images/valheim/.env`,
 which is not in git.
 
-## Worlds and modifiers
+## The world and its seed
 
-Each file in `worlds/` is one world. `VALHEIM_WORLD` in `images/valheim/.env`
-picks which one runs (default: `default`). Switch for one run with:
+The server runs one world, set in `world.env`. Its save is
+`servers/valheim/config/worlds_local/<WORLD_NAME>.fwl` and `.db`.
 
-```bash
-VALHEIM_WORLD=hardcore docker compose -f images/valheim/docker-compose.yml up -d
-```
+The seed is written into that save when the world is created. No documented
+launch argument sets it, and `-seed` in `SERVER_ARGS` had no effect when tried.
+To run a world with seed `epstein`:
 
-Every world keeps its own save in `servers/valheim/config/worlds_local`, named
-after its `WORLD_NAME`, so switching back and forth does not touch the other
-world. To add a world, copy `worlds/default.env`, change `WORLD_NAME` and the
-modifiers.
+1. In the Valheim game, create a new world named `funcompose` with seed `epstein`, and play a minute or two so it saves.
+2. Copy `funcompose.fwl` and `funcompose.db` from `%USERPROFILE%\AppData\LocalLow\IronGate\Valheim\worlds_local` into `servers/valheim/config/worlds_local/`.
+3. Start the server with `up -d`.
+
+The name in step 1 has to match `WORLD_NAME`. If `worlds_local` already holds a
+`funcompose` save, the server loads that one and it keeps its old seed. Move it
+out of the folder first, or set a new `WORLD_NAME` for the new save.
+
+## Modifiers
 
 `SERVER_ARGS` holds the modifiers as the game's command-line arguments:
 
 ```
-SERVER_ARGS=-preset hard -modifier raids none -setkey nomap
+SERVER_ARGS=-preset normal -modifier resources muchmore
 ```
 
 ### `-preset <name>`
@@ -63,9 +68,6 @@ The modifiers are stored in the world save, and the server applies
 Because the preset comes first and resets the modifiers, removing a `-modifier`
 or `-setkey` should take it off again; check in game after such a change. A
 misspelled name or value is ignored without an error.
-
-`hardcore` death deletes characters. Back up first:
-`servers/valheim/config/backups` has hourly backups from the hours people played.
 
 ## Mods
 

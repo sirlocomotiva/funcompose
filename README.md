@@ -3,7 +3,7 @@
 Game servers in Docker, with every setting and your mods kept in git:
 
 - **7 Days to Die**: below, and `images/7dtd/README.md`
-- **Valheim**: world modifiers per world, see [Valheim](#valheim)
+- **Valheim**: server settings and world modifiers, see [Valheim](#valheim)
 
 ## Quick start
 
@@ -49,7 +49,7 @@ docker compose -f images/valheim/docker-compose.yml logs -f valheim
 ```
 
 - `configs/valheim/server.env` holds the shared settings: name, public listing, crossplay, admins, updates, backups, mods.
-- Each `configs/valheim/worlds/<name>.env` is one world with its own save and world modifiers (`-preset hard -modifier raids none -setkey nomap`, ...). `VALHEIM_WORLD` in `.env` picks which one runs.
+- `configs/valheim/world.env` sets the save name and the world modifiers. The seed is fixed when the world is created; see `configs/valheim/README.md`.
 - `configs/valheim/README.md` lists every modifier and value; `images/valheim/README.md` has the rest. Forward UDP 2456–2458. x86_64 hosts only.
 
 ## Layout
